@@ -4,7 +4,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "CommLab — Communication Games",
   description: "Explore communication patterns through interactive games and frameworks.",
-  icons: { icon: "/favicon.ico" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", type: "image/x-icon" },
+    ],
+  },
 };
 
 export default function RootLayout({
