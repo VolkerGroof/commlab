@@ -74,87 +74,103 @@ function CircleVisual({ name1, name2, data, active, step }: {
   const arrBotLeft   = show.s2 && show.f1;  // BOTTOM → LEFT
   const arrLeftTop   = show.f1 && show.s1;  // LEFT → TOP
 
-  const DARK = "#555";
+  // Layout constants — wider viewBox so ovals aren't clipped
+  // viewBox: 520 × 360
+  // TOP box: x=170, y=12, w=180, h=82 → center (260, 53)
+  // RIGHT oval: cx=460, cy=180, rx=58, ry=52 → right edge=518 ✓
+  // BOTTOM box: x=170, y=266, w=180, h=82 → center (260, 307)
+  // LEFT oval: cx=60, cy=180, rx=58, ry=52 → left edge=2 ✓
+  // Arrows: TOP right(350,53) → RIGHT top(460,128), etc.
+  const DARK = "#444";
   const stmtFill  = (k: "s1"|"s2") => data[k] ? `${PINK}14`   : active === k ? `${PINK}08`   : "#f9f9f9";
   const feelFill  = (k: "f1"|"f2") => data[k] ? `${ORANGE}14` : active === k ? `${ORANGE}08` : "#f9f9f9";
   const stmtStroke= (k: "s1"|"s2") => active===k ? PINK   : data[k] ? `${PINK}60`   : "#e0e0e0";
   const feelStroke= (k: "f1"|"f2") => active===k ? ORANGE : data[k] ? `${ORANGE}60` : "#e0e0e0";
   const stmtSW    = (k: "s1"|"s2") => active===k ? 2 : 1.5;
   const feelSW    = (k: "f1"|"f2") => active===k ? 2 : 1.5;
-  const trunc = (s: string | undefined, n = 22) => s ? (s.length > n ? s.slice(0, n) + "…" : s) : "";
+  const trunc = (s: string | undefined, n = 20) => s ? (s.length > n ? s.slice(0, n) + "…" : s) : "";
 
   return (
-    <svg viewBox="0 0 400 340" style={{ width: "100%", maxWidth: 420, display: "block", margin: "0 auto" }}>
+    <svg viewBox="0 0 520 360" style={{ width: "100%", maxWidth: 520, display: "block", margin: "0 auto" }}>
       <defs>
         <marker id="vc-arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
           <path d="M0,0 L0,7 L7,3.5 Z" fill={DARK} />
         </marker>
+        {/* Text paths — all go left-to-right for readable labels */}
+        <path id="tp-tr" d="M 350,53 Q 460,53 460,128" />
+        <path id="tp-rb" d="M 350,307 Q 460,307 460,232" />
+        <path id="tp-bl" d="M 170,307 Q 60,307 60,232" />
+        <path id="tp-lt" d="M 60,128 Q 60,53 170,53" />
       </defs>
 
       {/* Arrows — clockwise, only when both nodes visible */}
       {arrTopRight && <>
-        <path d="M 280,50 Q 365,50 365,118" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text x="358" y="77"  fontSize="8.5" fill={DARK} textAnchor="middle">feels because</text>
-        <text x="358" y="88"  fontSize="8.5" fill={DARK} textAnchor="middle">of it →</text>
+        <path d="M 350,53 Q 460,53 460,128" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
+        <text fontSize="8" fill={DARK}>
+          <textPath href="#tp-tr" startOffset="48%" textAnchor="middle" dy="-5">feels because of it</textPath>
+        </text>
       </>}
       {arrRightBot && <>
-        <path d="M 365,222 Q 365,292 280,292" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text x="358" y="259" fontSize="8.5" fill={DARK} textAnchor="middle">acts</text>
-        <text x="358" y="270" fontSize="8.5" fill={DARK} textAnchor="middle">accordingly →</text>
+        <path d="M 460,232 Q 460,307 350,307" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
+        <text fontSize="8" fill={DARK}>
+          <textPath href="#tp-rb" startOffset="52%" textAnchor="middle" dy="-5">acts accordingly</textPath>
+        </text>
       </>}
       {arrBotLeft && <>
-        <path d="M 120,292 Q 35,292 35,222" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text x="42" y="259" fontSize="8.5" fill={DARK} textAnchor="middle">← feels because</text>
-        <text x="42" y="270" fontSize="8.5" fill={DARK} textAnchor="middle">of it</text>
+        <path d="M 170,307 Q 60,307 60,232" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
+        <text fontSize="8" fill={DARK}>
+          <textPath href="#tp-bl" startOffset="52%" textAnchor="middle" dy="-5">feels because of it</textPath>
+        </text>
       </>}
       {arrLeftTop && <>
-        <path d="M 35,118 Q 35,50 120,50" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text x="42" y="77"  fontSize="8.5" fill={DARK} textAnchor="middle">← acts</text>
-        <text x="42" y="88"  fontSize="8.5" fill={DARK} textAnchor="middle">accordingly</text>
+        <path d="M 60,232 Q 60,53 170,53" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
+        <text fontSize="8" fill={DARK}>
+          <textPath href="#tp-lt" startOffset="48%" textAnchor="middle" dy="-5">acts accordingly</textPath>
+        </text>
       </>}
 
       {/* TOP box — Statement Person 1 */}
       {show.s1 && <>
-        <rect x="120" y="10" width="160" height="80" rx="10"
+        <rect x="170" y="12" width="180" height="82" rx="10"
           fill={stmtFill("s1")} stroke={stmtStroke("s1")} strokeWidth={stmtSW("s1")} />
-        <text x="200" y="36" textAnchor="middle" fontSize="8" fontWeight="700" fill={PINK} letterSpacing="0.06em">STATEMENT / BEHAVIOR</text>
-        <text x="200" y="50" textAnchor="middle" fontSize="10" fontWeight="700" fill={PINK}>{name1}</text>
+        <text x="260" y="38" textAnchor="middle" fontSize="8" fontWeight="700" fill={PINK} letterSpacing="0.06em">STATEMENT / BEHAVIOR</text>
+        <text x="260" y="53" textAnchor="middle" fontSize="10" fontWeight="700" fill={PINK}>{name1}</text>
         {data.s1
-          ? <text x="200" y="73" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.s1)}</text>
-          : active === "s1" && <text x="200" y="73" textAnchor="middle" fontSize="9" fill="#bbb">enter below…</text>}
+          ? <text x="260" y="76" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.s1)}</text>
+          : active === "s1" && <text x="260" y="76" textAnchor="middle" fontSize="9" fill="#bbb">enter below…</text>}
       </>}
 
       {/* RIGHT oval — Feeling Person 2 */}
       {show.f2 && <>
-        <ellipse cx="365" cy="170" rx="55" ry="52"
+        <ellipse cx="460" cy="180" rx="58" ry="52"
           fill={feelFill("f2")} stroke={feelStroke("f2")} strokeWidth={feelSW("f2")} />
-        <text x="365" y="160" textAnchor="middle" fontSize="8" fontWeight="700" fill={ORANGE} letterSpacing="0.05em">INNER FEELING</text>
-        <text x="365" y="174" textAnchor="middle" fontSize="10" fontWeight="700" fill={ORANGE}>{name2}</text>
+        <text x="460" y="170" textAnchor="middle" fontSize="8" fontWeight="700" fill={ORANGE} letterSpacing="0.05em">INNER FEELING</text>
+        <text x="460" y="184" textAnchor="middle" fontSize="10" fontWeight="700" fill={ORANGE}>{name2}</text>
         {data.f2
-          ? <text x="365" y="191" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.f2, 10)}</text>
-          : active === "f2" && <text x="365" y="190" textAnchor="middle" fontSize="9" fill="#bbb">enter…</text>}
+          ? <text x="460" y="201" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.f2, 10)}</text>
+          : active === "f2" && <text x="460" y="200" textAnchor="middle" fontSize="9" fill="#bbb">enter…</text>}
       </>}
 
       {/* BOTTOM box — Statement Person 2 */}
       {show.s2 && <>
-        <rect x="120" y="250" width="160" height="80" rx="10"
+        <rect x="170" y="266" width="180" height="82" rx="10"
           fill={stmtFill("s2")} stroke={stmtStroke("s2")} strokeWidth={stmtSW("s2")} />
-        <text x="200" y="275" textAnchor="middle" fontSize="8" fontWeight="700" fill={PINK} letterSpacing="0.06em">STATEMENT / BEHAVIOR</text>
-        <text x="200" y="289" textAnchor="middle" fontSize="10" fontWeight="700" fill={PINK}>{name2}</text>
+        <text x="260" y="291" textAnchor="middle" fontSize="8" fontWeight="700" fill={PINK} letterSpacing="0.06em">STATEMENT / BEHAVIOR</text>
+        <text x="260" y="305" textAnchor="middle" fontSize="10" fontWeight="700" fill={PINK}>{name2}</text>
         {data.s2
-          ? <text x="200" y="312" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.s2)}</text>
-          : active === "s2" && <text x="200" y="312" textAnchor="middle" fontSize="9" fill="#bbb">enter below…</text>}
+          ? <text x="260" y="328" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.s2)}</text>
+          : active === "s2" && <text x="260" y="328" textAnchor="middle" fontSize="9" fill="#bbb">enter below…</text>}
       </>}
 
       {/* LEFT oval — Feeling Person 1 */}
       {show.f1 && <>
-        <ellipse cx="35" cy="170" rx="55" ry="52"
+        <ellipse cx="60" cy="180" rx="58" ry="52"
           fill={feelFill("f1")} stroke={feelStroke("f1")} strokeWidth={feelSW("f1")} />
-        <text x="35" y="160" textAnchor="middle" fontSize="8" fontWeight="700" fill={ORANGE} letterSpacing="0.05em">INNER FEELING</text>
-        <text x="35" y="174" textAnchor="middle" fontSize="10" fontWeight="700" fill={ORANGE}>{name1}</text>
+        <text x="60" y="170" textAnchor="middle" fontSize="8" fontWeight="700" fill={ORANGE} letterSpacing="0.05em">INNER FEELING</text>
+        <text x="60" y="184" textAnchor="middle" fontSize="10" fontWeight="700" fill={ORANGE}>{name1}</text>
         {data.f1
-          ? <text x="35" y="191" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.f1, 10)}</text>
-          : active === "f1" && <text x="35" y="190" textAnchor="middle" fontSize="9" fill="#bbb">enter…</text>}
+          ? <text x="60" y="201" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.f1, 10)}</text>
+          : active === "f1" && <text x="60" y="200" textAnchor="middle" fontSize="9" fill="#bbb">enter…</text>}
       </>}
     </svg>
   );
