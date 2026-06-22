@@ -379,8 +379,8 @@ function ViciousCircleInner() {
   const [soloStep, setSoloStep] = useState<SoloStep>("s1");
 
   // Names
-  const [name1, setName1] = useState(urlSession ? (urlPlayer === 1 ? urlN1 : urlN2) : "You");
-  const [name2, setName2] = useState(urlSession ? (urlPlayer === 1 ? urlN2 : urlN1) : "Other person");
+  const [name1, setName1] = useState(urlSession ? urlN1 : "You");
+  const [name2, setName2] = useState(urlSession ? urlN2 : "Other person");
   const [pairN1, setPairN1] = useState("");
   const [pairN2, setPairN2] = useState("");
 
