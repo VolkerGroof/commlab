@@ -19,7 +19,7 @@ const games = [
     title: "The Inner Team",
     description: "Surface the conflicting voices before a hard decision. Let your inner cast speak.",
     color: "#1d9e75",
-    available: false,
+    available: true,
   },
   {
     id: "value-square",
@@ -27,7 +27,7 @@ const games = [
     title: "The Value Square",
     description: "Every strength has a shadow. Find the healthy balance between your values.",
     color: "#e07a3a",
-    available: false,
+    available: true,
   },
   {
     id: "vicious-circle",
