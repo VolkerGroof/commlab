@@ -35,7 +35,7 @@ const games = [
     title: "The Vicious Circle",
     description: "Name the loop you're stuck in. Make the self-reinforcing pattern visible — then step out.",
     color: "#d4537e",
-    available: false,
+    available: true,
   },
   {
     id: "riemann-thomann",
