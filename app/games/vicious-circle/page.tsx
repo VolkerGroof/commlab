@@ -322,7 +322,7 @@ function CombinedPicture({ name1, name2, c1, c2 }: { name1: string; name2: strin
   );
 }
 
-function PairResultStep({ name1, name2, c1, c2 }: { name1: string; name2: string; c1: Partial<CircleData>; c2: Partial<CircleData> }) {
+function PairResultStep({ name1, name2, c1, c2, onPlayAgain }: { name1: string; name2: string; c1: Partial<CircleData>; c2: Partial<CircleData>; onPlayAgain: () => void }) {
   const [showCombined, setShowCombined] = useState(false);
   return wrap(<>
     <Label text="BOTH CIRCLES" />
@@ -353,6 +353,12 @@ function PairResultStep({ name1, name2, c1, c2 }: { name1: string; name2: string
       {showCombined ? "Hide the real picture ↑" : "Build the real picture together ↓"}
     </button>
     {showCombined && <CombinedPicture name1={name1} name2={name2} c1={c1} c2={c2} />}
+
+    <div style={{ borderTop: "1px solid #eee", paddingTop: 24, marginTop: 24 }}>
+      <button onClick={onPlayAgain} style={{ ...btnSt("#111", true), width: "100%" }}>
+        ↩ Play again with a new situation
+      </button>
+    </div>
   </>);
 }
 
@@ -567,7 +573,7 @@ function ViciousCircleInner() {
     const peerCircleData = peerCircle;
     const c1 = player === 1 ? myCircle   : peerCircleData;
     const c2 = player === 1 ? peerCircleData : myCircle;
-    return <PairResultStep name1={name1} name2={name2} c1={c1} c2={c2} />;
+    return <PairResultStep name1={name1} name2={name2} c1={c1} c2={c2} onPlayAgain={() => { setData({}); setPeerCircle(null); setMode("choose"); setSoloStep("s1"); }} />;
   }
 
   return null;
