@@ -123,7 +123,7 @@ function CircleVisual({ name1, name2, data, active, step }: {
         </text>
       </>}
       {arrLeftTop && <>
-        <path d="M 60,232 Q 60,53 170,53" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
+        <path d="M 60,128 Q 60,53 170,53" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
         <text fontSize="8" fill={DARK}>
           <textPath href="#tp-lt" startOffset="48%" textAnchor="middle" dy="-5">acts accordingly</textPath>
         </text>
@@ -279,45 +279,68 @@ function Spinner({ text }: { text: string }) {
   );
 }
 
-// ── Pair result — combined third schema ───────────────────────────────────────
+// ── Combined (editable) picture ───────────────────────────────────────────────
 
-function ThirdSchema({ name1, name2, c1, c2 }: { name1: string; name2: string; c1: Partial<CircleData>; c2: Partial<CircleData> }) {
-  // Combined: s1 from c1, f2 from c2 (P2's actual feeling), s2 from c2, f1 from c1 (P1's actual feeling)
-  const combined: Partial<CircleData> = {
-    s1: c1.s1, f2: c2.f1, // P2's OWN feeling
-    s2: c2.s1, f1: c1.f1, // P1's OWN feeling — c2.s1 is P2's view of their own behavior = P1's bottom
-  };
+function CombinedPicture({ name1, name2, c1, c2 }: { name1: string; name2: string; c1: Partial<CircleData>; c2: Partial<CircleData> }) {
+  // Pre-fill with each person's real data: c1 = name1's circle, c2 = name2's circle
+  const [rs1, setRs1] = useState(c1.s1 ?? ""); // name1's statement
+  const [rf1, setRf1] = useState(c1.f1 ?? ""); // name1's real feeling
+  const [rs2, setRs2] = useState(c2.s1 ?? ""); // name2's statement
+  const [rf2, setRf2] = useState(c2.f1 ?? ""); // name2's real feeling
+  const combined = { s1: rs1, f1: rf1, s2: rs2, f2: rf2 };
+
   return (
-    <div style={{ marginTop: 32 }}>
-      <Label text="COMBINED PICTURE" />
-      <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 16px", lineHeight: 1.5 }}>
-        This diagram combines both perspectives — with each person's <em>actual</em> inner feeling.
-      </p>
+    <div style={{ marginTop: 8 }}>
+      <Label text="THE REAL PICTURE" />
+      <div style={{ background: `${ORANGE}08`, border: `1.5px solid ${ORANGE}25`, borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: "#666", margin: "0 0 4px", lineHeight: 1.5 }}>
+          Now build the circle together based on what you've learned. Each person fills in:
+        </p>
+        <ul style={{ fontSize: 13, color: "#888", margin: "4px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
+          <li>Their <strong>own actual inner feeling</strong> — only they truly know this</li>
+          <li>The <strong>other person's statement or behavior</strong> — exactly as they witnessed it</li>
+        </ul>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 700, color: PINK, letterSpacing: "0.06em", margin: "0 0 6px" }}>{name1.toUpperCase()}</p>
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 4px" }}>My statement / behavior:</p>
+          <input value={rs1} onChange={e => setRs1(e.target.value)} style={{ ...inputSt(), fontSize: 13, marginBottom: 10 }} />
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 4px" }}>My actual inner feeling:</p>
+          <input value={rf1} onChange={e => setRf1(e.target.value)} style={{ ...inputSt(), fontSize: 13 }} />
+        </div>
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 700, color: PINK, letterSpacing: "0.06em", margin: "0 0 6px" }}>{name2.toUpperCase()}</p>
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 4px" }}>My statement / behavior:</p>
+          <input value={rs2} onChange={e => setRs2(e.target.value)} style={{ ...inputSt(), fontSize: 13, marginBottom: 10 }} />
+          <p style={{ fontSize: 12, color: "#888", margin: "0 0 4px" }}>My actual inner feeling:</p>
+          <input value={rf2} onChange={e => setRf2(e.target.value)} style={{ ...inputSt(), fontSize: 13 }} />
+        </div>
+      </div>
       <CircleVisual name1={name1} name2={name2} data={combined} />
     </div>
   );
 }
 
 function PairResultStep({ name1, name2, c1, c2 }: { name1: string; name2: string; c1: Partial<CircleData>; c2: Partial<CircleData> }) {
-  const [showThird, setShowThird] = useState(false);
+  const [showCombined, setShowCombined] = useState(false);
   return wrap(<>
     <Label text="BOTH CIRCLES" />
-    <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 20px", lineHeight: 1.5 }}>
-      Here are your two perspectives side by side. Discuss: what did the other really feel — and why did they react that way?
+    <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 24px", lineHeight: 1.5 }}>
+      Here are your two perspectives. Discuss: what did the other really feel — and why did they react that way?
     </p>
 
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 8 }}>
-      <div>
-        <p style={{ fontSize: 11, fontWeight: 700, color: PINK, letterSpacing: "0.07em", margin: "0 0 8px" }}>{name1.toUpperCase()}'S VIEW</p>
-        <CircleVisual name1={name1} name2={name2} data={c1} />
-      </div>
-      <div>
-        <p style={{ fontSize: 11, fontWeight: 700, color: PINK, letterSpacing: "0.07em", margin: "0 0 8px" }}>{name2.toUpperCase()}'S VIEW</p>
-        <CircleVisual name1={name1} name2={name2} data={{ s1: c2.s2, s2: c2.s1, f1: c2.f2, f2: c2.f1 }} />
-      </div>
-    </div>
+    {/* name1's view — own name at top */}
+    <p style={{ fontSize: 11, fontWeight: 700, color: PINK, letterSpacing: "0.07em", margin: "0 0 8px" }}>{name1.toUpperCase()}'S VIEW</p>
+    <CircleVisual name1={name1} name2={name2} data={c1} />
 
-    <div style={{ background: "#fff9f5", border: `1.5px solid ${ORANGE}30`, borderRadius: 12, padding: "16px 18px", margin: "20px 0" }}>
+    <div style={{ margin: "24px 0", borderTop: "1px solid #eee" }} />
+
+    {/* name2's view — their name at top, data swapped */}
+    <p style={{ fontSize: 11, fontWeight: 700, color: PINK, letterSpacing: "0.07em", margin: "0 0 8px" }}>{name2.toUpperCase()}'S VIEW</p>
+    <CircleVisual name1={name2} name2={name1} data={c2} />
+
+    <div style={{ background: "#fff9f5", border: `1.5px solid ${ORANGE}30`, borderRadius: 12, padding: "16px 18px", margin: "28px 0 20px" }}>
       <p style={{ fontSize: 13, fontWeight: 600, color: ORANGE, margin: "0 0 6px" }}>Discussion prompts</p>
       <ul style={{ fontSize: 13, color: "#666", lineHeight: 1.7, margin: 0, paddingLeft: 18 }}>
         <li>What surprised you about the other person's circle?</li>
@@ -326,11 +349,10 @@ function PairResultStep({ name1, name2, c1, c2 }: { name1: string; name2: string
       </ul>
     </div>
 
-    <button onClick={() => setShowThird(v => !v)} style={{ ...btnSt("#111", true), width: "100%", marginBottom: 8 }}>
-      {showThird ? "Hide combined picture ↑" : "Show combined picture ↓"}
+    <button onClick={() => setShowCombined(v => !v)} style={{ ...btnSt("#111", true), width: "100%", marginBottom: 8 }}>
+      {showCombined ? "Hide the real picture ↑" : "Build the real picture together ↓"}
     </button>
-
-    {showThird && <ThirdSchema name1={name1} name2={name2} c1={c1} c2={c2} />}
+    {showCombined && <CombinedPicture name1={name1} name2={name2} c1={c1} c2={c2} />}
   </>);
 }
 
@@ -423,7 +445,10 @@ function ViciousCircleInner() {
     if (idx < order.length - 1) setSoloStep(order[idx + 1]);
   }
 
-  const pairFillOrder: SoloStep[] = ["s1", "s2", "f2", "f1", "reflect"];
+  // For Player 2, their s1 maps to the BOTTOM node visually (their position),
+  // so we swap the active highlight and revealed-node step.
+  const p2swap: Record<string, "s1"|"s2"|"f1"|"f2"> = { s1:"s2", s2:"s1", f1:"f2", f2:"f1" };
+  const p2stepSwap: Record<string, SoloStep> = { s1:"s2", s2:"s1", f1:"f2", f2:"f1", reflect:"reflect" };
 
   // ── Render ──
 
@@ -516,25 +541,19 @@ function ViciousCircleInner() {
       )}
 
       <p style={{ fontSize: 12, fontWeight: 600, color: PINK, margin: "0 0 4px" }}>Filling in as: <strong>{myName}</strong></p>
-      <CircleVisual name1={name1} name2={name2} step={step} data={
-        player === 1 ? data : { s1: data.s2, s2: data.s1, f1: data.f2, f2: data.f1 }
-      } active={step !== "reflect" ? step as "s1"|"s2"|"f1"|"f2" : undefined} />
+      <CircleVisual
+        name1={player === 1 ? name1 : name2}
+        name2={player === 1 ? name2 : name1}
+        step={player === 1 ? step : (p2stepSwap[step] ?? step)}
+        data={player === 1 ? data : { s1: data.s2, s2: data.s1, f1: data.f2, f2: data.f1 }}
+        active={step !== "reflect" ? (player === 1 ? step as "s1"|"s2"|"f1"|"f2" : p2swap[step]) : undefined}
+      />
 
       <div style={{ marginTop: 20 }}>
         {step === "s1" && <StepCard label="STEP 1 OF 4" prompt={`What do you (${myName}) say or do?`} value={data.s1 ?? ""} onChange={set("s1")} onNext={nextSoloStep} nextLabel="Continue →" placeholder="e.g. I withdraw and go silent…" />}
         {step === "s2" && <StepCard label="STEP 2 OF 4" prompt={`How does ${otherName} react?`} value={data.s2 ?? ""} onChange={set("s2")} onNext={nextSoloStep} nextLabel="Continue →" placeholder="e.g. They push harder…" />}
         {step === "f2" && <StepCard label="STEP 3 OF 4" prompt={`What must ${otherName} have felt — to react that way?`} value={data.f2 ?? ""} onChange={set("f2")} onNext={nextSoloStep} nextLabel="Continue →" placeholder="e.g. Ignored, anxious…" />}
-        {step === "f1" && <StepCard label="STEP 4 OF 4" prompt={`What do YOU (${myName}) feel — that leads to your behavior in step 1?`} value={data.f1 ?? ""} onChange={set("f1")} onNext={() => setSoloStep("reflect")} nextLabel="See my circle →" placeholder="e.g. Overwhelmed, pressured…" />}
-        {step === "reflect" && filledAll && (
-          <>
-            <ReflectionSection name1={myName} name2={otherName} circle={data as CircleData} r1={r1} setR1={setR1} r2={r2} setR2={setR2} />
-            <div style={{ marginTop: 24 }}>
-              <button onClick={submitPairCircle} style={{ ...btnSt(PINK), width: "100%" }}>
-                Submit my circle — wait for {otherName} →
-              </button>
-            </div>
-          </>
-        )}
+        {step === "f1" && <StepCard label="STEP 4 OF 4" prompt={`What do YOU (${myName}) feel — that leads to your behavior in step 1?`} value={data.f1 ?? ""} onChange={set("f1")} onNext={submitPairCircle} nextLabel={`Done — wait for ${otherName} →`} placeholder="e.g. Overwhelmed, pressured…" />}
       </div>
     </>);
   }
