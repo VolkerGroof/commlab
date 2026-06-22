@@ -15,8 +15,12 @@ export async function POST(req: NextRequest) {
   const prompt = type === "escalate"
     ? `${context}
 
+Important grammar rule: if a person is called "You", use second-person verbs ("you feel", "you say", "you withdraw") — never "you feels" or "you says".
+
 In 2–3 short bullet points, explain how this vicious circle escalates over time — what makes it self-reinforcing and harder to break the longer it goes on. Be concrete, not generic. Detect the language from the names/content and respond in that same language. Return ONLY a JSON array of strings: ["point 1","point 2","point 3"]`
     : `${context}
+
+Important grammar rule: if a person is called "You", use second-person verbs ("you feel", "you say") — never "you feels" or "you says".
 
 In 2–3 short bullet points, suggest concrete ways to break this specific vicious circle. Focus on what either person could do differently — small, realistic steps. Not generic advice. Detect the language from the names/content and respond in that same language. Return ONLY a JSON array of strings: ["suggestion 1","suggestion 2","suggestion 3"]`;
 
