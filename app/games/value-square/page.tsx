@@ -133,10 +133,10 @@ function PickStep({ primaryValue, suggestions, onPick }: {
 
 function ValueSquareVisual({ data }: { data: SquareData }) {
   const quads = [
-    { label: data.primaryValue, sub: "DEIN WERT", color: COLOR, positive: true, corner: "12px 0 0 0" },
-    { label: data.complementaryValue, sub: "SCHWESTERWERT", color: COLOR2, positive: true, corner: "0 12px 0 0" },
-    { label: data.excessPrimary, sub: "WENN ÜBERTRIEBEN", color: COLOR, positive: false, corner: "0 0 0 12px" },
-    { label: data.excessComplementary, sub: "WENN ÜBERTRIEBEN", color: COLOR2, positive: false, corner: "0 0 12px 0" },
+    { label: data.primaryValue, sub: "YOUR VALUE", color: COLOR, positive: true, corner: "12px 0 0 0" },
+    { label: data.complementaryValue, sub: "SISTER VALUE", color: COLOR2, positive: true, corner: "0 12px 0 0" },
+    { label: data.excessPrimary, sub: "WHEN OVERDONE", color: COLOR, positive: false, corner: "0 0 0 12px" },
+    { label: data.excessComplementary, sub: "WHEN OVERDONE", color: COLOR2, positive: false, corner: "0 0 12px 0" },
   ];
 
   return (
@@ -197,7 +197,7 @@ function DirectionCard({ nr, color, fromExcess, towardValue, description }: {
   return (
     <div style={{ background: `${color}08`, border: `1.5px solid ${color}30`, borderRadius: 12, padding: "16px 18px" }}>
       <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: "0.07em", marginBottom: 8 }}>
-        ENTWICKLUNGSRICHTUNG {nr}
+        DEVELOPMENT DIRECTION {nr}
       </div>
       <div style={{ fontSize: 13, fontWeight: 600, color: "#555", marginBottom: 6 }}>
         <span style={{ color, opacity: 0.8 }}>{fromExcess}</span>
@@ -218,7 +218,7 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
 }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <Label text={`ENTWICKLUNGSRICHTUNG ${nr} — MEINE SCHRITTE`} />
+      <Label text={`DEVELOPMENT DIRECTION ${nr} — MY STEPS`} />
       <div style={{ background: "#fff", borderRadius: 14, border: `1.5px solid ${color}25`, overflow: "hidden" }}>
         <div style={{ background: `${color}07`, padding: "12px 18px", borderBottom: `1px solid ${color}15` }}>
           <span style={{ fontSize: 12, color, fontWeight: 600 }}>{fromExcess}</span>
@@ -230,7 +230,7 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
           <textarea
             value={steps}
             onChange={e => onSteps(e.target.value)}
-            placeholder="Welche konkreten Schritte könnte ich gehen…"
+            placeholder="What concrete steps could I take…"
             rows={3}
             style={{ ...inputSt(), resize: "none", lineHeight: 1.6, fontSize: 14 }}
           />
@@ -239,7 +239,7 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
             disabled={loading}
             style={{ ...btnSt(color, true, loading), marginTop: 10 }}
           >
-            {loading ? "Lade Vorschläge…" : "Vorschläge bekommen →"}
+            {loading ? "Loading suggestions…" : "Get suggestions →"}
           </button>
 
           {suggestions.length > 0 && (
@@ -278,9 +278,9 @@ function SquareStep({ data, steps1, onSteps1, steps2, onSteps2, sugg1, sugg2, lo
   onGetSugg1: () => void; onGetSugg2: () => void;
 }) {
   return wrap(<>
-    <Label text="DEIN WERTEQUADRAT" />
+    <Label text="YOUR VALUEEQUADRAT" />
     <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 16px", lineHeight: 1.5 }}>
-      Dein Wert und sein Schwesterwert — und was jeder wird, wenn er übertrieben wird.
+      Your value and its sister value — and what each becomes when taken too far.
     </p>
 
     <ValueSquareVisual data={data} />
@@ -290,7 +290,7 @@ function SquareStep({ data, steps1, onSteps1, steps2, onSteps2, sugg1, sugg2, lo
       <DirectionCard nr={2} color={COLOR} fromExcess={data.excessComplementary} towardValue={data.primaryValue} description={data.direction2} />
     </div>
 
-    <Label text="DEINE ENTWICKLUNG" />
+    <Label text="YOUR DEVELOPMENT" />
 
     <DevelopmentSection
       nr={1} color={COLOR2}
@@ -373,9 +373,9 @@ export default function ValueSquarePage() {
   }
 
   if (step === "enter") return <EnterStep value={primaryValue} onChange={setPrimaryValue} onContinue={handleEnter} />;
-  if (step === "analyzing") return <LoadingStep text="Suche Schwesterwerte…" />;
+  if (step === "analyzing") return <LoadingStep text="Finding complementary values…" />;
   if (step === "pick") return <PickStep primaryValue={primaryValue} suggestions={suggestions} onPick={handlePick} />;
-  if (step === "building") return <LoadingStep text="Baue dein Wertequadrat…" />;
+  if (step === "building") return <LoadingStep text="Building your value square…" />;
   if (step === "square" && squareData) return (
     <SquareStep
       data={squareData}
