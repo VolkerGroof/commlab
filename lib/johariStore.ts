@@ -1,4 +1,8 @@
-// selections[rater][ratee] = string[] of selected attribute names
+import { kv } from "@vercel/kv";
+
+const TTL = 8 * 60 * 60; // 8 hours in seconds
+const KEY = (id: string) => `johari:${id}`;
+
 export type JohariSelections = Record<string, Record<string, string[]>>;
 
 export interface JohariParticipant {
@@ -10,42 +14,30 @@ export interface JohariSession {
   id: string;
   phase: "lobby" | "setup" | "assessing" | "results";
   category: string;
-  attributes: string[]; // 20 attributes
+  attributes: string[];
   participants: JohariParticipant[];
   selections: JohariSelections;
   createdAt: number;
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __johariSessions: Map<string, JohariSession> | undefined;
-}
-if (!globalThis.__johariSessions) globalThis.__johariSessions = new Map();
-const store = globalThis.__johariSessions;
-
-function cleanup() {
-  const cutoff = Date.now() - 8 * 60 * 60 * 1000;
-  for (const [id, s] of store.entries()) {
-    if (s.createdAt < cutoff) store.delete(id);
-  }
+export async function getJohari(id: string): Promise<JohariSession | null> {
+  return kv.get<JohariSession>(KEY(id));
 }
 
-export function getJohari(id: string) { return store.get(id) ?? null; }
-
-export function createJohari(id: string, starterName: string): JohariSession {
-  cleanup();
+export async function createJohari(id: string, starterName: string): Promise<JohariSession> {
   const s: JohariSession = {
     id, phase: "lobby", category: "", attributes: [],
     participants: [{ name: starterName, done: false }],
     selections: {}, createdAt: Date.now(),
   };
-  store.set(id, s);
+  await kv.set(KEY(id), s, { ex: TTL });
   return s;
 }
 
-export function mutateJohari(id: string, fn: (s: JohariSession) => void): JohariSession | null {
-  const s = store.get(id);
+export async function mutateJohari(id: string, fn: (s: JohariSession) => void): Promise<JohariSession | null> {
+  const s = await kv.get<JohariSession>(KEY(id));
   if (!s) return null;
   fn(s);
+  await kv.set(KEY(id), s, { ex: TTL });
   return s;
 }
