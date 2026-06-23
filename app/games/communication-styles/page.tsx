@@ -164,7 +164,8 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
           title={listening ? "Stop recording" : "Speak instead of typing"}
           style={{
             position: "absolute", bottom: 10, right: 10,
-            background: listening ? "#d4537e" : transcribing ? "#e07a3a" : "#639922",
+            background: listening ? "#d4537e" : "#fff",
+          border: listening ? "none" : "1.5px solid #e0e0e0",
             border: "none", borderRadius: 10, padding: "9px 14px",
             cursor: "pointer", fontSize: 18, lineHeight: 1,
             transition: "background 0.2s",
