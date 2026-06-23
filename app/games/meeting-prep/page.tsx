@@ -197,9 +197,9 @@ function MeetingPrepInner() {
     if (!s) return;
     setSession(s);
     if (s.phase === "filling"       && uiPhase === "lobby")         setUiPhase("multi-filling");
-    if (s.phase === "consolidating" && uiPhase === "waiting")       setUiPhase("consolidating");
-    if (s.phase === "consolidating" && uiPhase === "consolidating") {/* stay, update session */}
-    if (s.phase === "results")      setUiPhase("multi-result");
+    // uiPhase may still be "multi-filling" when first person finishes — check phase directly
+    if (s.phase === "consolidating" && uiPhase !== "consolidating") setUiPhase("consolidating");
+    if (s.phase === "results"       && uiPhase !== "multi-result")  setUiPhase("multi-result");
   }, [sessionId, uiPhase]);
 
   useEffect(() => {
