@@ -74,7 +74,7 @@ function Chip({ label, selected, color, onClick }: { label: string; selected: bo
 
 // ── Quadrant display ──────────────────────────────────────────────────────────
 
-function QuadrantBox({ type, attrs }: { type: keyof typeof QUADRANT_CONFIG; attrs: string[] }) {
+function QuadrantBox({ type, attrs }: { type: keyof typeof QUADRANT_CONFIG; attrs: { attr: string; count: number }[] }) {
   const q = QUADRANT_CONFIG[type];
   return (
     <div style={{ background: q.bg, border: `2px solid ${q.color}50`, borderRadius: 12, padding: 14, minHeight: 90 }}>
@@ -83,7 +83,16 @@ function QuadrantBox({ type, attrs }: { type: keyof typeof QUADRANT_CONFIG; attr
       {attrs.length === 0
         ? <span style={{ fontSize: 12, color: "#ccc" }}>—</span>
         : <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {attrs.map(a => <Chip key={a} label={a} selected color={q.color} />)}
+            {attrs.map(({ attr, count }) => (
+              <span key={attr} style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "5px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                background: `${q.color}20`, color: q.color, border: `1px solid ${q.color}40`,
+              }}>
+                {attr}
+                <span style={{ fontSize: 11, fontWeight: 700, background: `${q.color}30`, borderRadius: 10, padding: "0 5px" }}>{count}</span>
+              </span>
+            ))}
           </div>}
     </div>
   );
@@ -262,27 +271,28 @@ function JohariInner() {
   }
 
   // ── Compute Johari for a given person ──
-  function computeJohari(targetName: string): { open: string[]; blind: string[]; hidden: string[]; unknown: string[] } {
+  type AttrCount = { attr: string; count: number };
+  function computeJohari(targetName: string): { open: AttrCount[]; blind: AttrCount[]; hidden: AttrCount[]; unknown: AttrCount[] } {
     if (!session) return { open: [], blind: [], hidden: [], unknown: [] };
-    const attrs = session.attributes;
-    const selfSelected = new Set(session.selections[targetName]?.[targetName] ?? []);
+    const attrs  = session.attributes;
     const others = session.participants.filter(p => p.name !== targetName);
+    const selfSelected = new Set(session.selections[targetName]?.[targetName] ?? []);
 
-    const othersSelectedCount = (attr: string) =>
-      others.filter(o => (session.selections[o.name]?.[targetName] ?? []).includes(attr)).length;
-
-    const open: string[]    = [];
-    const blind: string[]   = [];
-    const hidden: string[]  = [];
-    const unknown: string[] = [];
+    const open: AttrCount[]    = [];
+    const blind: AttrCount[]   = [];
+    const hidden: AttrCount[]  = [];
+    const unknown: AttrCount[] = [];
 
     attrs.forEach(attr => {
-      const iSee    = selfSelected.has(attr);
-      const othersSee = othersSelectedCount(attr) > 0;
-      if (iSee && othersSee)       open.push(attr);
-      else if (!iSee && othersSee) blind.push(attr);
-      else if (iSee && !othersSee) hidden.push(attr);
-      else                         unknown.push(attr);
+      const iSee        = selfSelected.has(attr);
+      const othersCount = others.filter(o => (session.selections[o.name]?.[targetName] ?? []).includes(attr)).length;
+      const totalCount  = (iSee ? 1 : 0) + othersCount;
+
+      if (iSee && othersCount > 0)       open.push({ attr, count: totalCount });
+      else if (!iSee && othersCount > 0) blind.push({ attr, count: totalCount });
+      else if (iSee && othersCount === 0) hidden.push({ attr, count: totalCount });
+      else if (totalCount > 0)           unknown.push({ attr, count: totalCount });
+      // skip attrs nobody selected (totalCount === 0) from unknown
     });
 
     return { open, blind, hidden, unknown };
