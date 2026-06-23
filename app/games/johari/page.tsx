@@ -182,13 +182,28 @@ function JohariInner() {
   }
 
   // ── Join session ──
+  const [joinError, setJoinError] = useState("");
   async function handleJoin() {
     if (!nameInput.trim() || !sessionId) return;
+    setJoinError("");
     const name = nameInput.trim();
-    const s = await api("join", { id: sessionId, name });
-    setMyName(name);
-    setSession(s);
-    setUiPhase(s.phase === "assessing" ? "assessing" : "lobby");
+    try {
+      const res = await fetch("/api/games/johari/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", id: sessionId, name }),
+      });
+      if (!res.ok) {
+        setJoinError("Session not found — ask the host to share a fresh link.");
+        return;
+      }
+      const s: JohariSession = await res.json();
+      setMyName(name);
+      setSession(s);
+      setUiPhase(s.phase === "assessing" ? "assessing" : "lobby");
+    } catch {
+      setJoinError("Could not connect. Please try again.");
+    }
   }
 
   // ── Start setup (starter only) ──
@@ -319,6 +334,11 @@ function JohariInner() {
     <input value={nameInput} onChange={e => setNameInput(e.target.value)}
       onKeyDown={e => { if (e.key === "Enter" && nameInput.trim()) handleJoin(); }}
       placeholder="Enter your name…" style={{ ...inputSt(), marginBottom: 14 }} autoFocus />
+    {joinError && (
+      <p style={{ fontSize: 13, color: "#d4537e", margin: "0 0 12px", padding: "10px 14px", background: "#d4537e10", borderRadius: 8 }}>
+        {joinError}
+      </p>
+    )}
     <button onClick={handleJoin} disabled={!nameInput.trim()} style={{
       width: "100%", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600,
       cursor: nameInput.trim() ? "pointer" : "not-allowed", border: "none", fontFamily: FONT,
