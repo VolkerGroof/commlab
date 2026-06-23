@@ -19,15 +19,13 @@ export async function POST(req: NextRequest) {
 
   if (action === "create") {
     const id = randomId();
-    const s = createJohari(id, body.name);
-    return NextResponse.json(s);
+    return NextResponse.json(createJohari(id, body.name));
   }
 
   if (action === "join") {
     const s = mutateJohari(body.id, sess => {
-      if (!sess.participants.find(p => p.name === body.name)) {
+      if (!sess.participants.find(p => p.name === body.name))
         sess.participants.push({ name: body.name, done: false });
-      }
     });
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
@@ -37,22 +35,21 @@ export async function POST(req: NextRequest) {
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  if (action === "set-questions") {
+  if (action === "set-attributes") {
     const s = mutateJohari(body.id, sess => {
-      sess.category = body.category;
-      sess.questions = body.questions;
-      sess.phase = "assessing";
+      sess.category   = body.category;
+      sess.attributes = body.attributes;
+      sess.phase      = "assessing";
     });
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  if (action === "submit-ratings") {
-    // body.ratings: { [rateeName]: boolean[] } — one array of 5 booleans per ratee
+  if (action === "submit-selections") {
+    // body.selections: { [rateeName]: string[] }
     const s = mutateJohari(body.id, sess => {
-      sess.ratings[body.rater] = body.ratings;
-      const participant = sess.participants.find(p => p.name === body.rater);
-      if (participant) participant.done = true;
-      // Check if everyone is done → move to results
+      sess.selections[body.rater] = body.selections;
+      const p = sess.participants.find(p => p.name === body.rater);
+      if (p) p.done = true;
       if (sess.participants.every(p => p.done)) sess.phase = "results";
     });
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });

@@ -1,18 +1,18 @@
+// selections[rater][ratee] = string[] of selected attribute names
+export type JohariSelections = Record<string, Record<string, string[]>>;
+
 export interface JohariParticipant {
   name: string;
   done: boolean;
 }
 
-// ratings[rater][ratee][questionIndex] = true (yes) | false (no)
-export type JohariRatings = Record<string, Record<string, boolean[]>>;
-
 export interface JohariSession {
   id: string;
   phase: "lobby" | "setup" | "assessing" | "results";
   category: string;
-  questions: string[]; // 5 questions with [name] placeholder
+  attributes: string[]; // 20 attributes
   participants: JohariParticipant[];
-  ratings: JohariRatings;
+  selections: JohariSelections;
   createdAt: number;
 }
 
@@ -35,9 +35,9 @@ export function getJohari(id: string) { return store.get(id) ?? null; }
 export function createJohari(id: string, starterName: string): JohariSession {
   cleanup();
   const s: JohariSession = {
-    id, phase: "lobby", category: "", questions: [],
+    id, phase: "lobby", category: "", attributes: [],
     participants: [{ name: starterName, done: false }],
-    ratings: {}, createdAt: Date.now(),
+    selections: {}, createdAt: Date.now(),
   };
   store.set(id, s);
   return s;
