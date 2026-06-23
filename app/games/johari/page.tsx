@@ -511,6 +511,15 @@ function JohariInner() {
           <strong style={{ color: "#bbb" }}>Unknown</strong>: no one selected it
         </p>
       </div>
+
+      <div style={{ borderTop: "1px solid #eee", paddingTop: 24, marginTop: 8 }}>
+        <button onClick={() => { setUiPhase("landing"); setSessionId(""); setMyName(""); setSession(null); }} style={{
+          width: "100%", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+          cursor: "pointer", border: "1.5px solid #ddd", background: "#fff", color: "#555", fontFamily: FONT,
+        }}>
+          ↩ Start a new session
+        </button>
+      </div>
     </>);
   }
 
