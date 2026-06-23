@@ -65,29 +65,30 @@ function wrap(content: React.ReactNode) {
 }
 
 // ── Voice input hook ──────────────────────────────────────────────────────────
-// text     = confirmed final text (in textarea)
-// liveText = interim preview shown live while speaking
 
 function useVoice() {
   const [text, setText]           = useState("");
   const [liveText, setLiveText]   = useState("");
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
-  const shouldListenRef = useRef(false);
-  const recRef          = useRef<any>(null);
-  const confirmedRef    = useRef(""); // sync ref to avoid stale closures
+  const [voiceError, setVoiceError] = useState("");
+  const recRef = useRef<any>(null);
+  const confirmedRef = useRef("");
 
   useEffect(() => {
     setSupported("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
   }, []);
 
-  function startRec() {
+  function start() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
+    setVoiceError("");
     const rec = new SR();
-    rec.continuous      = false; // more reliable; restart via onend
-    rec.interimResults  = true;  // live preview while speaking
-    rec.lang            = navigator.language || "";
+    rec.continuous     = false;
+    rec.interimResults = true;
+    rec.lang           = navigator.language || "de-DE";
+
+    rec.onstart = () => { setListening(true); setLiveText(""); };
 
     rec.onresult = (e: any) => {
       let interim = "";
@@ -98,58 +99,44 @@ function useVoice() {
           setLiveText("");
         } else {
           interim += e.results[i][0].transcript;
+          setLiveText(interim);
         }
       }
-      if (interim) setLiveText(interim);
     };
 
     rec.onerror = (e: any) => {
       setLiveText("");
-      if (e.error === "not-allowed") { shouldListenRef.current = false; setListening(false); }
+      setListening(false);
+      if (e.error !== "no-speech") setVoiceError(e.error);
     };
 
     rec.onend = () => {
       setLiveText("");
-      if (shouldListenRef.current) {
-        setTimeout(() => { if (shouldListenRef.current) try { startRec(); } catch (_) {} }, 150);
-      } else {
-        setListening(false);
-      }
+      setListening(false);
     };
 
     recRef.current = rec;
-    try { rec.start(); } catch (_) {
-      setTimeout(() => { if (shouldListenRef.current) try { startRec(); } catch (__) {} }, 300);
-    }
+    rec.start();
   }
 
-  function toggle() {
-    if (listening) {
-      shouldListenRef.current = false;
-      recRef.current?.stop();
-      recRef.current = null;
-      setListening(false);
-      setLiveText("");
-    } else {
-      shouldListenRef.current = true;
-      setListening(true);
-      startRec();
-    }
+  function stop() {
+    recRef.current?.stop();
+    setListening(false);
+    setLiveText("");
   }
 
-  // Allow manual typing to also update the confirmed ref
   function handleTextChange(val: string) {
     confirmedRef.current = val;
     setText(val);
   }
 
-  return { text, liveText, setText: handleTextChange, listening, supported, toggle };
+  return { text, liveText, voiceError, setText: handleTextChange, listening, supported, start, stop };
 }
 
 // ── Prompt step ───────────────────────────────────────────────────────────────
 
 function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
-  const { text, liveText, setText, listening, supported, toggle } = useVoice();
+  const { text, liveText, voiceError, setText, listening, supported, start, stop } = useVoice();
 
   return wrap(<>
     <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", color: "#111", margin: "0 0 8px" }}>
@@ -187,7 +174,7 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
       />
       {supported && (
         <button
-          onClick={toggle}
+          onClick={listening ? stop : start}
           title={listening ? "Stop recording" : "Speak instead of typing"}
           style={{
             position: "absolute", bottom: 10, right: 10,
@@ -202,8 +189,16 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
         </button>
       )}
     </div>
-    {supported && !listening && (
+    {supported && !listening && !voiceError && (
       <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 12px" }}>🎤 Tap the mic to speak instead of typing</p>
+    )}
+    {voiceError && (
+      <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 12px" }}>
+        Voice error: <strong>{voiceError}</strong>
+        {voiceError === "not-allowed" && " — please allow microphone access in your browser settings"}
+        {voiceError === "network" && " — Chrome needs internet for speech recognition (Google servers)"}
+        {voiceError === "audio-capture" && " — no microphone found"}
+      </p>
     )}
     {listening && (
       <div style={{ marginBottom: 12 }}>
