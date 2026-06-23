@@ -79,16 +79,16 @@ function useVoice() {
     setSupported("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
   }, []);
 
-  function start() {
+  const activeRef = useRef(false); // true while user wants to record
+
+  function startRec() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
+    if (!SR || !activeRef.current) return;
     setVoiceError("");
     const rec = new SR();
     rec.continuous     = false;
     rec.interimResults = true;
-    rec.lang           = navigator.language || "de-DE";
-
-    rec.onstart = () => { setListening(true); setLiveText(""); };
+    rec.lang           = ""; // auto-detect
 
     rec.onresult = (e: any) => {
       let interim = "";
@@ -106,20 +106,39 @@ function useVoice() {
 
     rec.onerror = (e: any) => {
       setLiveText("");
-      setListening(false);
-      if (e.error !== "no-speech") setVoiceError(e.error);
+      // not-allowed / audio-capture = fatal, stop
+      if (e.error === "not-allowed" || e.error === "audio-capture") {
+        activeRef.current = false;
+        setListening(false);
+        setVoiceError(e.error);
+      }
+      // no-speech / network = transient, onend will restart
     };
 
     rec.onend = () => {
       setLiveText("");
-      setListening(false);
+      if (activeRef.current) {
+        // restart immediately — Chrome stops after silence
+        setTimeout(startRec, 100);
+      } else {
+        setListening(false);
+      }
     };
 
     recRef.current = rec;
-    rec.start();
+    try { rec.start(); } catch (_) {
+      setTimeout(startRec, 300);
+    }
+  }
+
+  function start() {
+    activeRef.current = true;
+    setListening(true);
+    startRec();
   }
 
   function stop() {
+    activeRef.current = false;
     recRef.current?.stop();
     setListening(false);
     setLiveText("");
