@@ -54,8 +54,16 @@ const games = [
     available: true,
   },
   {
-    id: "nonviolent-communication",
+    id: "johari",
     number: "07",
+    title: "Johari Window",
+    description: "A shared team assessment — discover what you know about yourself and what others see that you don't.",
+    color: "#e67e22",
+    available: true,
+  },
+  {
+    id: "nonviolent-communication",
+    number: "08",
     title: "Nonviolent Communication",
     description: "Prepare a difficult message with honesty and empathy — 4 steps to say what you mean without blame.",
     color: "#16a085",
@@ -63,7 +71,7 @@ const games = [
   },
   {
     id: "fierce-conversation",
-    number: "08",
+    number: "09",
     title: "Fierce Conversation",
     description: "Prepare the conversation you've been putting off. 7 steps. 60 seconds.",
     color: "#8e44ad",
