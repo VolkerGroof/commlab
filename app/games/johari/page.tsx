@@ -165,7 +165,9 @@ function JohariInner() {
   }, [sessionId, uiPhase]);
 
   useEffect(() => {
-    if (!sessionId || uiPhase === "landing" || uiPhase === "join" || uiPhase === "results") return;
+    if (!sessionId || uiPhase === "landing" || uiPhase === "join") return;
+    // Keep polling in "results" phase too until session.phase is also "results" (waiting for others)
+    if (uiPhase === "results" && session?.phase === "results") return;
     const t = setInterval(pollSession, 3000);
     return () => clearInterval(t);
   }, [sessionId, uiPhase, pollSession]);
@@ -283,7 +285,8 @@ function JohariInner() {
         if (session.ratings[o.name]?.[myName]?.[qi]) yesCount++;
       });
       const othersYes = others.length > 0 && yesCount > others.length / 2;
-      return { question: q.replace(/\[name\]/gi, "you"), selfYes, othersYes, othersCount: others.length };
+      const qText = q.replace(/^Does \[name\]/i, "Do you").replace(/\[name\]/gi, "you");
+      return { question: qText, selfYes, othersYes, othersCount: others.length };
     });
   }
 
@@ -466,7 +469,9 @@ function JohariInner() {
         QUESTION {qi + 1} OF {session.questions.length} · {isSelf ? "ABOUT YOURSELF" : `ABOUT ${rateeName.toUpperCase()}`}
       </p>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111", margin: "0 0 24px", lineHeight: 1.3 }}>
-        {question.replace(/\[name\]/gi, isSelf ? "you" : rateeName)}
+        {isSelf
+          ? question.replace(/^Does \[name\]/i, "Do you").replace(/\[name\]/gi, "you")
+          : question.replace(/\[name\]/gi, rateeName)}
       </h2>
 
       <div style={{ display: "flex", gap: 12 }}>
