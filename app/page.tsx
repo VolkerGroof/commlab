@@ -54,8 +54,16 @@ const games = [
     available: true,
   },
   {
-    id: "fierce-conversation",
+    id: "nonviolent-communication",
     number: "07",
+    title: "Nonviolent Communication",
+    description: "Prepare a difficult message with honesty and empathy — 4 steps to say what you mean without blame.",
+    color: "#16a085",
+    available: true,
+  },
+  {
+    id: "fierce-conversation",
+    number: "08",
     title: "Fierce Conversation",
     description: "Prepare the conversation you've been putting off. 7 steps. 60 seconds.",
     color: "#8e44ad",
