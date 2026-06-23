@@ -38,12 +38,12 @@ const games = [
     available: true,
   },
   {
-    id: "riemann-thomann",
+    id: "reading-the-room",
     number: "05",
-    title: "Riemann-Thomann",
-    description: "Map four fundamental human needs: closeness, distance, stability, and change.",
+    title: "Reading the Room",
+    description: "Upload a meeting transcript and reveal the hidden role dynamics — Mover, Follower, Opposer, Bystander.",
     color: "#378add",
-    available: false,
+    available: true,
   },
   {
     id: "communication-styles",
