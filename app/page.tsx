@@ -49,9 +49,9 @@ const games = [
     id: "communication-styles",
     number: "06",
     title: "8 Communication Styles",
-    description: "Identify the deep pattern running your conversations — and discover what it costs you.",
+    description: "Describe a conflict or high-stake situation — and find out which of the 8 styles runs your reactions without you noticing.",
     color: "#639922",
-    available: false,
+    available: true,
   },
 ];
 

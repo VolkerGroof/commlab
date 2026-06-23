@@ -1,0 +1,442 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface StyleResult {
+  key: string;
+  name: string;
+  tagline: string;
+  description: string;
+  strength: string;
+}
+
+interface FinalResult {
+  needsMore: false;
+  dominant: StyleResult;
+  coStyle: StyleResult;
+  allergy: string;
+  coaching: string;
+}
+
+interface MoreResult {
+  needsMore: true;
+  questions: { question: string; options: string[] }[];
+}
+
+type AnalysisResult = FinalResult | MoreResult;
+
+type AppStep = "prompt" | "analyzing" | "questions" | "result";
+
+// ── Style metadata ────────────────────────────────────────────────────────────
+
+const STYLE_META: Record<string, { color: string; icon: string; de: string }> = {
+  "aggressive-devaluing":      { color: "#d4537e", icon: "⚡", de: "Aggressiv-entwertend" },
+  "distancing":                { color: "#378add", icon: "🧊", de: "Sich distanzierend" },
+  "selfless":                  { color: "#7c6fcd", icon: "🕊️", de: "Selbstlos" },
+  "helping":                   { color: "#1d9e75", icon: "🛠️", de: "Helfend" },
+  "needy-dependent":           { color: "#e07a3a", icon: "🌊", de: "Bedürftig-abhängig" },
+  "self-proving":              { color: "#639922", icon: "🏆", de: "Sich beweisend" },
+  "controlling":               { color: "#c0392b", icon: "📋", de: "Bestimmend-kontrollierend" },
+  "expressive-dramatizing":    { color: "#8e44ad", icon: "🎭", de: "Mitteilungsfreudig-dramatisierend" },
+};
+
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function wrap(content: React.ReactNode) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#f7f7f5", fontFamily: FONT }}>
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 10, background: "#fff", borderBottom: "1px solid #eee", padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Link href="/" style={{ fontSize: 13, color: "#999", textDecoration: "none" }}>← CommLab</Link>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>8 Communication Styles</span>
+        <span />
+      </div>
+      <div style={{ paddingTop: 52 }}>
+        <div style={{ maxWidth: 580, margin: "0 auto", padding: "48px 24px 80px" }}>
+          {content}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Voice input hook ──────────────────────────────────────────────────────────
+// text     = confirmed final text (in textarea)
+// liveText = interim preview shown live while speaking
+
+function useVoice() {
+  const [text, setText]           = useState("");
+  const [liveText, setLiveText]   = useState("");
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const shouldListenRef = useRef(false);
+  const recRef          = useRef<any>(null);
+  const confirmedRef    = useRef(""); // sync ref to avoid stale closures
+
+  useEffect(() => {
+    setSupported("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  }, []);
+
+  function startRec() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.continuous      = false; // more reliable; restart via onend
+    rec.interimResults  = true;  // live preview while speaking
+    rec.lang            = navigator.language || "";
+
+    rec.onresult = (e: any) => {
+      let interim = "";
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          confirmedRef.current += e.results[i][0].transcript + " ";
+          setText(confirmedRef.current);
+          setLiveText("");
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      if (interim) setLiveText(interim);
+    };
+
+    rec.onerror = (e: any) => {
+      setLiveText("");
+      if (e.error === "not-allowed") { shouldListenRef.current = false; setListening(false); }
+    };
+
+    rec.onend = () => {
+      setLiveText("");
+      if (shouldListenRef.current) {
+        setTimeout(() => { if (shouldListenRef.current) try { startRec(); } catch (_) {} }, 150);
+      } else {
+        setListening(false);
+      }
+    };
+
+    recRef.current = rec;
+    try { rec.start(); } catch (_) {
+      setTimeout(() => { if (shouldListenRef.current) try { startRec(); } catch (__) {} }, 300);
+    }
+  }
+
+  function toggle() {
+    if (listening) {
+      shouldListenRef.current = false;
+      recRef.current?.stop();
+      recRef.current = null;
+      setListening(false);
+      setLiveText("");
+    } else {
+      shouldListenRef.current = true;
+      setListening(true);
+      startRec();
+    }
+  }
+
+  // Allow manual typing to also update the confirmed ref
+  function handleTextChange(val: string) {
+    confirmedRef.current = val;
+    setText(val);
+  }
+
+  return { text, liveText, setText: handleTextChange, listening, supported, toggle };
+}
+
+// ── Prompt step ───────────────────────────────────────────────────────────────
+
+function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
+  const { text, liveText, setText, listening, supported, toggle } = useVoice();
+
+  return wrap(<>
+    <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", color: "#111", margin: "0 0 8px" }}>
+      8 Communication Styles
+    </h1>
+    <p style={{ fontSize: 15, color: "#888", margin: "0 0 28px", lineHeight: 1.6 }}>
+      Discover your dominant communication style — and what it reveals about you.
+    </p>
+
+    <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #eee", padding: "22px 24px", marginBottom: 20 }}>
+      <p style={{ fontSize: 14, fontWeight: 600, color: "#333", margin: "0 0 12px", lineHeight: 1.5 }}>
+        Think of a situation from the past few weeks that upset, annoyed, or hurt you — a conflict with a partner, a colleague, or in a meeting.
+      </p>
+      <p style={{ fontSize: 13, color: "#888", margin: "0 0 6px", lineHeight: 1.5 }}>
+        Close your eyes for a moment: Where were you? Who was there? What was said?
+      </p>
+      <p style={{ fontSize: 13, color: "#888", margin: 0, lineHeight: 1.5 }}>
+        Now describe it freely: What exactly happened? What did you think, feel, and how did you react? Don't worry about grammar — just let it flow.
+      </p>
+    </div>
+
+    <div style={{ position: "relative", marginBottom: 12 }}>
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        readOnly={listening}
+        placeholder="Describe the situation here…"
+        rows={7}
+        autoFocus
+        style={{
+          width: "100%", fontSize: 15, padding: "14px 16px", border: "1.5px solid #e0e0e0",
+          borderRadius: 12, outline: "none", boxSizing: "border-box", color: "#111",
+          fontFamily: FONT, background: "#fff", resize: "vertical", lineHeight: 1.6,
+        }}
+      />
+      {supported && (
+        <button
+          onClick={toggle}
+          title={listening ? "Stop recording" : "Speak instead of typing"}
+          style={{
+            position: "absolute", bottom: 10, right: 10,
+            background: listening ? "#d4537e" : "#639922",
+            border: "none", borderRadius: 10, padding: "9px 14px",
+            cursor: "pointer", fontSize: 18, lineHeight: 1,
+            transition: "background 0.2s",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+          }}
+        >
+          {listening ? "⏹" : "🎤"}
+        </button>
+      )}
+    </div>
+    {supported && !listening && (
+      <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 12px" }}>🎤 Tap the mic to speak instead of typing</p>
+    )}
+    {listening && (
+      <div style={{ marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 6px", fontWeight: 600 }}>● Recording… tap ⏹ when done</p>
+        {liveText && (
+          <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, padding: "8px 12px" }}>
+            <p style={{ fontSize: 13, color: "#aaa", margin: 0, fontStyle: "italic", lineHeight: 1.5 }}>{liveText}</p>
+          </div>
+        )}
+      </div>
+    )}
+
+    <button
+      onClick={() => onContinue(text.trim())}
+      disabled={text.trim().length < 30}
+      style={{
+        width: "100%", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600,
+        cursor: text.trim().length >= 30 ? "pointer" : "not-allowed", border: "none", fontFamily: FONT,
+        background: text.trim().length >= 30 ? "#639922" : "#e8e8e8",
+        color: text.trim().length >= 30 ? "#fff" : "#bbb",
+      }}
+    >
+      Analyze my communication style →
+    </button>
+  </>);
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+
+function LoadingStep() {
+  return wrap(
+    <div style={{ textAlign: "center", padding: "60px 0" }}>
+      <div style={{ width: 48, height: 48, border: "3px solid #63992230", borderTopColor: "#639922", borderRadius: "50%", animation: "spin 0.9s linear infinite", margin: "0 auto 20px" }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <p style={{ fontSize: 15, color: "#888" }}>Reading between the lines…</p>
+    </div>
+  );
+}
+
+// ── Questions step ────────────────────────────────────────────────────────────
+
+function QuestionsStep({ questions, onSubmit }: {
+  questions: { question: string; options: string[] }[];
+  onSubmit: (answers: { question: string; answer: string }[]) => void;
+}) {
+  const [selected, setSelected] = useState<(string | null)[]>(questions.map(() => null));
+  const allAnswered = selected.every(s => s !== null);
+
+  return wrap(<>
+    <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 6px" }}>A FEW MORE QUESTIONS</p>
+    <p style={{ fontSize: 15, color: "#555", margin: "0 0 28px", lineHeight: 1.5 }}>
+      To get a clearer picture, answer these briefly — choose whatever resonates most.
+    </p>
+
+    {questions.map((q, qi) => (
+      <div key={qi} style={{ marginBottom: 28 }}>
+        <p style={{ fontSize: 14, fontWeight: 600, color: "#333", margin: "0 0 12px", lineHeight: 1.5 }}>
+          {q.question}
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {q.options.map((opt, oi) => {
+            const isSelected = selected[qi] === opt;
+            return (
+              <button
+                key={oi}
+                onClick={() => setSelected(prev => { const n = [...prev]; n[qi] = opt; return n; })}
+                style={{
+                  padding: "12px 16px", borderRadius: 10, fontSize: 14, cursor: "pointer",
+                  border: `1.5px solid ${isSelected ? "#639922" : "#e8e8e8"}`,
+                  background: isSelected ? "#63992212" : "#fff",
+                  color: isSelected ? "#639922" : "#555",
+                  textAlign: "left", fontFamily: FONT, lineHeight: 1.4, fontWeight: isSelected ? 600 : 400,
+                  transition: "all 0.15s",
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ))}
+
+    <button
+      onClick={() => onSubmit(questions.map((q, i) => ({ question: q.question, answer: selected[i]! })))}
+      disabled={!allAnswered}
+      style={{
+        width: "100%", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600,
+        cursor: allAnswered ? "pointer" : "not-allowed", border: "none", fontFamily: FONT,
+        background: allAnswered ? "#639922" : "#e8e8e8",
+        color: allAnswered ? "#fff" : "#bbb",
+      }}
+    >
+      Discover my styles →
+    </button>
+  </>);
+}
+
+// ── Style card ────────────────────────────────────────────────────────────────
+
+function StyleCard({ style, size }: { style: StyleResult; size: "large" | "small" }) {
+  const meta = STYLE_META[style.key] ?? { color: "#999", icon: "●", de: "" };
+  const isLarge = size === "large";
+
+  return (
+    <div style={{
+      background: `${meta.color}10`, border: `2px solid ${meta.color}40`,
+      borderRadius: 16, padding: isLarge ? "24px 24px" : "16px 20px",
+      marginBottom: isLarge ? 16 : 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: isLarge ? 14 : 8 }}>
+        <span style={{ fontSize: isLarge ? 32 : 22 }}>{meta.icon}</span>
+        <div>
+          {isLarge && (
+            <div style={{ fontSize: 10, fontWeight: 700, color: meta.color, letterSpacing: "0.08em", marginBottom: 2 }}>
+              DOMINANT STYLE
+            </div>
+          )}
+          {!isLarge && (
+            <div style={{ fontSize: 10, fontWeight: 700, color: meta.color, letterSpacing: "0.08em", marginBottom: 2 }}>
+              CO-STYLE
+            </div>
+          )}
+          <div style={{ fontSize: isLarge ? 20 : 16, fontWeight: 700, color: meta.color, lineHeight: 1.2 }}>
+            {style.name}
+          </div>
+          {meta.de && (
+            <div style={{ fontSize: 11, color: meta.color, opacity: 0.6, marginTop: 1 }}>{meta.de}</div>
+          )}
+        </div>
+      </div>
+      <p style={{ fontSize: isLarge ? 15 : 13, fontStyle: "italic", color: "#555", margin: "0 0 10px", lineHeight: 1.5, fontWeight: 500 }}>
+        „{style.tagline}"
+      </p>
+      <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px", lineHeight: 1.65 }}>{style.description}</p>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <span style={{ fontSize: 12, color: meta.color, fontWeight: 700, flexShrink: 0 }}>✦</span>
+        <p style={{ fontSize: 12, color: meta.color, margin: 0, lineHeight: 1.5 }}>{style.strength}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Result step ───────────────────────────────────────────────────────────────
+
+function ResultStep({ result, onReset }: { result: FinalResult; onReset: () => void }) {
+  return wrap(<>
+    <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 20px" }}>YOUR COMMUNICATION PROFILE</p>
+
+    <StyleCard style={result.dominant} size="large" />
+    <StyleCard style={result.coStyle} size="small" />
+
+    {/* Allergy */}
+    <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #eee", padding: "18px 22px", marginBottom: 16 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 8px" }}>YOUR ALLERGY</p>
+      <p style={{ fontSize: 14, color: "#555", lineHeight: 1.65, margin: 0 }}>{result.allergy}</p>
+    </div>
+
+    {/* Coaching */}
+    <div style={{ background: "#63992210", border: "1.5px solid #63992240", borderRadius: 14, padding: "18px 22px", marginBottom: 28 }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "#639922", letterSpacing: "0.08em", margin: "0 0 8px" }}>YOUR NEXT STEP</p>
+      <p style={{ fontSize: 14, color: "#444", lineHeight: 1.65, margin: 0 }}>{result.coaching}</p>
+    </div>
+
+    <div style={{ borderTop: "1px solid #eee", paddingTop: 24 }}>
+      <button onClick={onReset} style={{
+        width: "100%", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+        cursor: "pointer", border: "1.5px solid #ddd", background: "#fff", color: "#555", fontFamily: FONT,
+      }}>
+        ↩ Try with a different situation
+      </button>
+    </div>
+  </>);
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+export default function CommunicationStylesPage() {
+  const [step, setStep]           = useState<AppStep>("prompt");
+  const [description, setDesc]    = useState("");
+  const [questions, setQuestions] = useState<{ question: string; options: string[] }[]>([]);
+  const [result, setResult]       = useState<FinalResult | null>(null);
+  const [error, setError]         = useState("");
+
+  async function analyze(desc: string, followUpAnswers?: { question: string; answer: string }[]) {
+    setStep("analyzing");
+    setError("");
+    try {
+      const res = await fetch("/api/games/communication-styles/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: desc, followUpAnswers }),
+      });
+      if (!res.ok) throw new Error();
+      const data: AnalysisResult = await res.json();
+
+      if (data.needsMore) {
+        setQuestions(data.questions);
+        setStep("questions");
+      } else {
+        setResult(data);
+        setStep("result");
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setStep("prompt");
+    }
+  }
+
+  function handlePrompt(text: string) {
+    setDesc(text);
+    analyze(text);
+  }
+
+  function handleAnswers(answers: { question: string; answer: string }[]) {
+    analyze(description, answers);
+  }
+
+  function reset() {
+    setStep("prompt"); setDesc(""); setQuestions([]); setResult(null); setError("");
+  }
+
+  return (
+    <>
+      {step === "prompt"    && <PromptStep onContinue={handlePrompt} />}
+      {step === "analyzing" && <LoadingStep />}
+      {step === "questions" && <QuestionsStep questions={questions} onSubmit={handleAnswers} />}
+      {step === "result"    && result && <ResultStep result={result} onReset={reset} />}
+      {error && (
+        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#d4537e", color: "#fff", padding: "12px 20px", borderRadius: 10, fontSize: 13, fontWeight: 600, zIndex: 100 }}>
+          {error}
+        </div>
+      )}
+    </>
+  );
+}
