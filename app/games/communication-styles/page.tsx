@@ -165,8 +165,8 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
           style={{
             position: "absolute", bottom: 10, right: 10,
             background: listening ? "#d4537e" : "#fff",
-          border: listening ? "none" : "1.5px solid #e0e0e0",
-            border: "none", borderRadius: 10, padding: "9px 14px",
+            border: listening ? "none" : "1.5px solid #e0e0e0",
+            borderRadius: 10, padding: "9px 14px",
             cursor: "pointer", fontSize: 18, lineHeight: 1,
             transition: "background 0.2s",
             boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
