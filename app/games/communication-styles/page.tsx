@@ -64,98 +64,65 @@ function wrap(content: React.ReactNode) {
   );
 }
 
-// ── Voice input hook ──────────────────────────────────────────────────────────
+// ── Voice input hook (MediaRecorder + Whisper) ────────────────────────────────
+// Works in Chrome, Firefox, Safari — no dependency on Google Speech servers
 
 function useVoice() {
-  const [text, setText]           = useState("");
-  const [liveText, setLiveText]   = useState("");
-  const [listening, setListening] = useState(false);
-  const [supported, setSupported] = useState(false);
+  const [text, setText]             = useState("");
+  const [listening, setListening]   = useState(false);
+  const [transcribing, setTransc]   = useState(false);
+  const [supported, setSupported]   = useState(false);
   const [voiceError, setVoiceError] = useState("");
-  const recRef = useRef<any>(null);
-  const confirmedRef = useRef("");
+  const mediaRecRef = useRef<MediaRecorder | null>(null);
+  const chunksRef   = useRef<Blob[]>([]);
 
   useEffect(() => {
-    setSupported("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+    setSupported(typeof navigator !== "undefined" && !!navigator.mediaDevices);
   }, []);
 
-  const activeRef = useRef(false); // true while user wants to record
-
-  function startRec() {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR || !activeRef.current) return;
+  async function start() {
     setVoiceError("");
-    const rec = new SR();
-    rec.continuous     = false;
-    rec.interimResults = true;
-    rec.lang           = ""; // auto-detect
-
-    rec.onresult = (e: any) => {
-      let interim = "";
-      for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          confirmedRef.current += e.results[i][0].transcript + " ";
-          setText(confirmedRef.current);
-          setLiveText("");
-        } else {
-          interim += e.results[i][0].transcript;
-          setLiveText(interim);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setListening(false);
+        setTransc(true);
+        try {
+          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          const fd = new FormData();
+          fd.append("audio", blob, "recording.webm");
+          const res = await fetch("/api/games/communication-styles/transcribe", { method: "POST", body: fd });
+          const { text: transcript } = await res.json();
+          if (transcript?.trim()) setText(prev => prev ? prev + " " + transcript.trim() : transcript.trim());
+        } catch {
+          setVoiceError("Transcription failed — please try again");
+        } finally {
+          setTransc(false);
         }
-      }
-    };
-
-    rec.onerror = (e: any) => {
-      setLiveText("");
-      // not-allowed / audio-capture = fatal, stop
-      if (e.error === "not-allowed" || e.error === "audio-capture") {
-        activeRef.current = false;
-        setListening(false);
-        setVoiceError(e.error);
-      }
-      // no-speech / network = transient, onend will restart
-    };
-
-    rec.onend = () => {
-      setLiveText("");
-      if (activeRef.current) {
-        // restart immediately — Chrome stops after silence
-        setTimeout(startRec, 100);
-      } else {
-        setListening(false);
-      }
-    };
-
-    recRef.current = rec;
-    try { rec.start(); } catch (_) {
-      setTimeout(startRec, 300);
+      };
+      mr.start();
+      mediaRecRef.current = mr;
+      setListening(true);
+    } catch (e: any) {
+      setVoiceError(e.name === "NotAllowedError" ? "Microphone access denied" : "Could not access microphone");
     }
   }
 
-  function start() {
-    activeRef.current = true;
-    setListening(true);
-    startRec();
-  }
-
   function stop() {
-    activeRef.current = false;
-    recRef.current?.stop();
-    setListening(false);
-    setLiveText("");
+    mediaRecRef.current?.stop();
   }
 
-  function handleTextChange(val: string) {
-    confirmedRef.current = val;
-    setText(val);
-  }
-
-  return { text, liveText, voiceError, setText: handleTextChange, listening, supported, start, stop };
+  return { text, setText, listening, transcribing, supported, voiceError, start, stop };
 }
 
 // ── Prompt step ───────────────────────────────────────────────────────────────
 
 function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
-  const { text, liveText, voiceError, setText, listening, supported, start, stop } = useVoice();
+  const { text, setText, listening, transcribing, supported, voiceError, start, stop } = useVoice();
 
   return wrap(<>
     <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", color: "#111", margin: "0 0 8px" }}>
@@ -181,7 +148,7 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
       <textarea
         value={text}
         onChange={e => setText(e.target.value)}
-        readOnly={listening}
+        readOnly={listening || transcribing}
         placeholder="Describe the situation here…"
         rows={7}
         autoFocus
@@ -197,37 +164,28 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
           title={listening ? "Stop recording" : "Speak instead of typing"}
           style={{
             position: "absolute", bottom: 10, right: 10,
-            background: listening ? "#d4537e" : "#639922",
+            background: listening ? "#d4537e" : transcribing ? "#e07a3a" : "#639922",
             border: "none", borderRadius: 10, padding: "9px 14px",
             cursor: "pointer", fontSize: 18, lineHeight: 1,
             transition: "background 0.2s",
             boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
           }}
         >
-          {listening ? "⏹" : "🎤"}
+          {listening ? "⏹" : transcribing ? "⟳" : "🎤"}
         </button>
       )}
     </div>
-    {supported && !listening && !voiceError && (
-      <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 12px" }}>🎤 Tap the mic to speak instead of typing</p>
-    )}
-    {voiceError && (
-      <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 12px" }}>
-        Voice error: <strong>{voiceError}</strong>
-        {voiceError === "not-allowed" && " — please allow microphone access in your browser settings"}
-        {voiceError === "network" && " — Chrome needs internet for speech recognition (Google servers)"}
-        {voiceError === "audio-capture" && " — no microphone found"}
-      </p>
+    {supported && !listening && !transcribing && !voiceError && (
+      <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 12px" }}>🎤 Tap the mic, speak, tap ⏹ — Whisper transcribes it</p>
     )}
     {listening && (
-      <div style={{ marginBottom: 12 }}>
-        <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 6px", fontWeight: 600 }}>● Recording… tap ⏹ when done</p>
-        {liveText && (
-          <div style={{ background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, padding: "8px 12px" }}>
-            <p style={{ fontSize: 13, color: "#aaa", margin: 0, fontStyle: "italic", lineHeight: 1.5 }}>{liveText}</p>
-          </div>
-        )}
-      </div>
+      <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 12px", fontWeight: 600 }}>● Recording… tap ⏹ to stop and transcribe</p>
+    )}
+    {transcribing && (
+      <p style={{ fontSize: 12, color: "#639922", margin: "0 0 12px", fontWeight: 600 }}>⟳ Transcribing…</p>
+    )}
+    {voiceError && (
+      <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 12px" }}>{voiceError}</p>
     )}
 
     <button
