@@ -253,16 +253,19 @@ function LoadingScreen() {
 
 // ── Result ────────────────────────────────────────────────────────────────────
 
-function ResultScreen({ assembled, wordCount, estimatedSeconds, onRestart }: {
-  assembled: string; wordCount: number; estimatedSeconds: number; onRestart: () => void;
+function ResultScreen({ initialInputs, onRestart }: {
+  initialInputs: Record<string, string>;
+  onRestart: () => void;
 }) {
-  const [text, setText] = useState(assembled);
-  const currentWords = text.split(/\s+/).filter(Boolean).length;
-  const currentSecs  = Math.round(currentWords / 2.5);
-  const isGood = currentWords <= 150;
+  const [sections, setSections] = useState<Record<string, string>>(initialInputs);
   const [copied, setCopied] = useState(false);
 
-  function copy() {
+  const totalWords = STEPS.reduce((sum, s) => sum + (sections[s.key] ?? "").split(/\s+/).filter(Boolean).length, 0);
+  const estimatedSecs = Math.round(totalWords / 2.5);
+  const isGood = totalWords <= 150;
+
+  function copyAll() {
+    const text = STEPS.map((s, i) => `${i + 1}. ${s.title}\n${sections[s.key] ?? ""}`).join("\n\n");
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -273,43 +276,49 @@ function ResultScreen({ assembled, wordCount, estimatedSeconds, onRestart }: {
     <h2 style={{ fontSize: 22, fontWeight: 700, color: COLOR, margin: "0 0 6px", letterSpacing: "-0.3px" }}>
       Your fierce conversation is ready
     </h2>
-    <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 24px" }}>
-      Edit freely — then practice it out loud until it feels natural.
+    <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 20px" }}>
+      Edit any section — then practice out loud until it feels natural.
     </p>
 
-    {/* Word / time indicator */}
-    <div style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "center" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: isGood ? "#1d9e7515" : "#d4537e15", border: `1px solid ${isGood ? "#1d9e7540" : "#d4537e40"}` }}>
-        <span style={{ fontSize: 14 }}>{isGood ? "✓" : "⚠"}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: isGood ? "#1d9e75" : "#d4537e" }}>
-          ~{currentSecs}s · {currentWords} words
-        </span>
-      </div>
-      {!isGood && <span style={{ fontSize: 12, color: "#d4537e" }}>Over 60s — trim to keep impact</span>}
+    {/* Time indicator */}
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 20, background: isGood ? "#1d9e7515" : "#d4537e15", border: `1px solid ${isGood ? "#1d9e7540" : "#d4537e40"}`, marginBottom: 24, width: "fit-content" }}>
+      <span style={{ fontSize: 14 }}>{isGood ? "✓" : "⚠"}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: isGood ? "#1d9e75" : "#d4537e" }}>
+        ~{estimatedSecs}s · {totalWords} words {!isGood && "— trim to stay under 60s"}
+      </span>
     </div>
 
-    <textarea
-      value={text}
-      onChange={e => setText(e.target.value)}
-      rows={12}
-      style={{ ...inputSt(), marginBottom: 14, fontSize: 15, lineHeight: 1.8 }}
-    />
-
-    <div style={{ display: "flex", gap: 10, marginBottom: 28 }}>
-      <button onClick={copy} style={{
-        flex: 1, padding: "12px 20px", borderRadius: 12, fontSize: 14, fontWeight: 600,
-        cursor: "pointer", border: `1.5px solid ${COLOR}50`, background: `${COLOR}08`, color: COLOR, fontFamily: FONT,
-      }}>
-        {copied ? "Copied ✓" : "Copy to clipboard"}
-      </button>
+    {/* Structured sections */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+      {STEPS.map((step, i) => (
+        <div key={step.key} style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #eee", overflow: "hidden" }}>
+          <div style={{ background: `${COLOR}08`, borderBottom: "1px solid #eee", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: COLOR, background: `${COLOR}20`, borderRadius: 6, padding: "2px 8px" }}>{i + 1}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: COLOR }}>{step.title}</span>
+          </div>
+          <textarea
+            value={sections[step.key] ?? ""}
+            onChange={e => setSections(p => ({ ...p, [step.key]: e.target.value }))}
+            rows={2}
+            style={{ ...inputSt(), border: "none", borderRadius: 0, fontSize: 14, padding: "12px 16px", lineHeight: 1.6 }}
+          />
+        </div>
+      ))}
     </div>
+
+    <button onClick={copyAll} style={{
+      width: "100%", padding: "12px 20px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+      cursor: "pointer", border: `1.5px solid ${COLOR}50`, background: `${COLOR}08`, color: COLOR, fontFamily: FONT, marginBottom: 20,
+    }}>
+      {copied ? "Copied ✓" : "Copy all to clipboard"}
+    </button>
 
     <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #eee", padding: "16px 20px", marginBottom: 24 }}>
       <p style={{ fontSize: 13, fontWeight: 600, color: "#555", margin: "0 0 6px" }}>Before you go:</p>
       <ul style={{ fontSize: 13, color: "#888", lineHeight: 1.8, margin: 0, paddingLeft: 20 }}>
         <li>Practice it out loud — at least twice</li>
-        <li>Time yourself: it should be under 60 seconds</li>
-        <li>After your opening, stop. Let silence do its work.</li>
+        <li>Time yourself: it must be under 60 seconds</li>
+        <li>After your opening, stop talking. Let silence do its work.</li>
         <li>Listen as much as you speak</li>
       </ul>
     </div>
@@ -330,41 +339,27 @@ export default function FierceConversationPage() {
   const [appStep, setAppStep]   = useState<AppStep>("intro");
   const [stepIdx, setStepIdx]   = useState(0);
   const [inputs, setInputs]     = useState<Record<string, string>>({});
-  const [result, setResult]     = useState<{ assembled: string; wordCount: number; estimatedSeconds: number } | null>(null);
+  const [finalInputs, setFinalInputs] = useState<Record<string, string>>({});
 
   function handleInput(key: string, val: string) {
     setInputs(p => ({ ...p, [key]: val }));
   }
 
-  async function handleNext() {
+  function handleNext() {
     if (stepIdx < STEPS.length - 1) {
       setStepIdx(i => i + 1);
     } else {
-      // Last step — assemble
-      setAppStep("assembling");
-      try {
-        const steps = STEPS.map(s => ({ key: s.key, title: s.title, input: inputs[s.key] ?? "" }));
-        const res = await fetch("/api/games/fierce-conversation/assemble", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ steps }),
-        });
-        const data = await res.json();
-        setResult(data);
-        setAppStep("result");
-      } catch {
-        setAppStep("steps"); // fall back
-      }
+      setFinalInputs(inputs);
+      setAppStep("result");
     }
   }
 
   function restart() {
-    setAppStep("intro"); setStepIdx(0); setInputs({}); setResult(null);
+    setAppStep("intro"); setStepIdx(0); setInputs({}); setFinalInputs({});
   }
 
-  if (appStep === "intro")      return <IntroStep onStart={() => setAppStep("steps")} />;
-  if (appStep === "steps")      return <StepScreen stepIndex={stepIdx} inputs={inputs} onInput={handleInput} onNext={handleNext} onBack={() => setStepIdx(i => i - 1)} />;
-  if (appStep === "assembling") return <LoadingScreen />;
-  if (appStep === "result" && result) return <ResultScreen {...result} onRestart={restart} />;
+  if (appStep === "intro")   return <IntroStep onStart={() => setAppStep("steps")} />;
+  if (appStep === "steps")   return <StepScreen stepIndex={stepIdx} inputs={inputs} onInput={handleInput} onNext={handleNext} onBack={() => setStepIdx(i => i - 1)} />;
+  if (appStep === "result")  return <ResultScreen initialInputs={finalInputs} onRestart={restart} />;
   return null;
 }
