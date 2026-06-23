@@ -21,7 +21,11 @@ export async function POST(req: NextRequest) {
 - Direction description: "${dirLabel}"
 ${existingSteps ? `- User has already noted: "${existingSteps}"` : ""}
 
-Generate 3–4 concrete, actionable development steps for this direction. Make them practical and specific — things a person can actually do or practice. Respond in the SAME language as the values. Return ONLY a valid JSON array of strings: ["Step 1","Step 2","Step 3"]`,
+Generate 3–4 concrete, actionable development steps for this direction.
+
+IMPORTANT: The goal is BALANCE, not jumping to the opposite extreme. Steps should help the person hold both "${primaryValue}" and "${towardValue}" simultaneously — small, mindful experiments that introduce the missing quality without abandoning the original value. Avoid suggestions that sound like "stop doing X" or "just be more Y." Instead, suggest practices that enrich and round out the existing value.
+
+Make them practical and specific — things a person can actually try in everyday life. Detect the language of the values and respond in that exact same language (English values → English output, German values → German output). Return ONLY a valid JSON array of strings: ["Step 1","Step 2","Step 3"]`,
     }],
   });
   const raw = (msg.content[0] as { type: string; text: string }).text.trim();

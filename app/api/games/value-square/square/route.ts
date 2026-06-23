@@ -20,7 +20,7 @@ Generate:
 3. direction1: One short encouraging sentence describing the development direction from excessPrimary toward more "${complementaryValue}"
 4. direction2: One short encouraging sentence describing the development direction from excessComplementary toward more "${primaryValue}"
 
-Respond in the SAME language as the input values. Return ONLY valid JSON:
+Detect the language of the input values and respond in that exact same language (English values → English output, German values → German output). Return ONLY valid JSON:
 {"excessPrimary":"...","excessComplementary":"...","direction1":"...","direction2":"..."}`,
     }],
   });

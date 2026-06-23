@@ -108,16 +108,26 @@ export default function HomePage() {
       backgroundSize: "400% 400%",
       animation: "aurora 18s ease infinite",
     }}>
-    <style>{`@keyframes aurora { 0%{background-position:0% 50%} 25%{background-position:50% 0%} 50%{background-position:100% 50%} 75%{background-position:50% 100%} 100%{background-position:0% 50%} }`}</style>
+    <style>{`
+      @keyframes aurora { 0%{background-position:0% 50%} 25%{background-position:50% 0%} 50%{background-position:100% 50%} 75%{background-position:50% 100%} 100%{background-position:0% 50%} }
+      @media (max-width: 640px) {
+        .cl-top-note { display: none !important; }
+        .cl-hero { padding: 56px 20px 36px !important; }
+        .cl-title { font-size: 34px !important; letter-spacing: -1px !important; white-space: normal !important; line-height: 1.15 !important; }
+        .cl-bullets { grid-template-columns: 1fr !important; gap: 8px 0 !important; text-align: left; margin: 0 auto; }
+        .cl-game-grid { grid-template-columns: 1fr !important; padding: 8px 16px 80px !important; max-width: 100% !important; }
+        .cl-search { padding: 0 20px !important; }
+      }
+    `}</style>
 
       {/* Top right note */}
-      <div style={{ position: "absolute", top: 24, right: 36 }}>
+      <div className="cl-top-note" style={{ position: "absolute", top: 24, right: 36 }}>
         <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>No sign-up. No data stored.</span>
       </div>
 
       {/* Hero */}
-      <section style={{ padding: "88px 40px 52px", textAlign: "center" }}>
-        <h1 style={{
+      <section className="cl-hero" style={{ padding: "88px 40px 52px", textAlign: "center" }}>
+        <h1 className="cl-title" style={{
           fontSize: 56,
           fontWeight: 700,
           lineHeight: 1.0,
@@ -129,7 +139,7 @@ export default function HomePage() {
           Unbox Communication.
         </h1>
 
-        <div style={{ display: "inline-grid", gridTemplateColumns: "1fr 1fr", gap: "12px 48px", marginBottom: 40 }}>
+        <div className="cl-bullets" style={{ display: "inline-grid", gridTemplateColumns: "1fr 1fr", gap: "12px 48px", marginBottom: 40 }}>
           {bullets.map((b) => (
             <div key={b.text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: b.color, flexShrink: 0 }} />
@@ -139,7 +149,7 @@ export default function HomePage() {
         </div>
 
         {/* Search box */}
-        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        <div className="cl-search" style={{ maxWidth: 560, margin: "0 auto" }}>
           <div style={{
             background: "#fff",
             borderRadius: 16,
@@ -213,7 +223,7 @@ export default function HomePage() {
       </section>
 
       {/* Game grid */}
-      <section style={{
+      <section className="cl-game-grid" style={{
         maxWidth: filteredIds ? 720 : 1040,
         margin: "0 auto",
         padding: "8px 40px 100px",

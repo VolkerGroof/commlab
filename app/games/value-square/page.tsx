@@ -5,6 +5,7 @@ import Link from "next/link";
 
 const COLOR = "#e07a3a";
 const COLOR2 = "#7c6fcd";
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 interface SquareData {
   primaryValue: string;
@@ -15,11 +16,9 @@ interface SquareData {
   direction2: string;
 }
 
-type Step = "enter" | "analyzing" | "pick" | "building" | "square";
+type AppStep = "enter" | "analyzing" | "pick" | "building" | "square";
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
-
-const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 function inputSt(): React.CSSProperties {
   return {
@@ -72,13 +71,13 @@ function EnterStep({ value, onChange, onContinue }: {
     </p>
     <Label text="YOUR VALUE" />
     <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 10px", lineHeight: 1.5 }}>
-      Which value do you identify with strongly? (e.g. "Sorgfalt", "Stärke", "Direktheit")
+      Which value do you identify with strongly? (e.g. "Diligence", "Strength", "Openness")
     </p>
     <input
       value={value}
       onChange={e => onChange(e.target.value)}
       onKeyDown={e => { if (e.key === "Enter" && value.trim()) onContinue(); }}
-      placeholder="e.g. Sorgfalt, Openness, Strength…"
+      placeholder="e.g. Diligence, Openness, Strength…"
       autoFocus
       style={{ ...inputSt(), marginBottom: 14 }}
     />
@@ -110,7 +109,6 @@ function PickStep({ primaryValue, suggestions, onPick }: {
     <div style={{ background: "#fff", borderRadius: 12, padding: "14px 18px", border: `1.5px solid ${COLOR}40`, marginBottom: 28 }}>
       <span style={{ fontSize: 16, fontWeight: 700, color: COLOR }}>{primaryValue}</span>
     </div>
-
     <Label text="COMPLEMENTARY VALUES" />
     <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 14px", lineHeight: 1.5 }}>
       Every value needs a healthy counterpart to stay in balance. Which of these feels like the right complement to <strong style={{ color: "#555" }}>{primaryValue}</strong>?
@@ -131,80 +129,94 @@ function PickStep({ primaryValue, suggestions, onPick }: {
 
 // ── Value Square visual ───────────────────────────────────────────────────────
 
-function ValueSquareVisual({ data }: { data: SquareData }) {
-  const quads = [
-    { label: data.primaryValue, sub: "YOUR VALUE", color: COLOR, positive: true, corner: "12px 0 0 0" },
-    { label: data.complementaryValue, sub: "SISTER VALUE", color: COLOR2, positive: true, corner: "0 12px 0 0" },
-    { label: data.excessPrimary, sub: "WHEN OVERDONE", color: COLOR, positive: false, corner: "0 0 0 12px" },
-    { label: data.excessComplementary, sub: "WHEN OVERDONE", color: COLOR2, positive: false, corner: "0 0 12px 0" },
-  ];
-
+function QuadBox({ label, sub, color, positive, radiusCorner }: {
+  label: string; sub: string; color: string; positive: boolean; radiusCorner: string;
+}) {
   return (
-    <div style={{ position: "relative", width: "100%", marginBottom: 8 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-        {quads.map((q, i) => (
-          <div key={i} style={{
-            padding: "22px 16px", minHeight: 120,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            background: q.positive ? `${q.color}10` : "#f5f5f5",
-            border: `1.5px solid ${q.positive ? `${q.color}50` : "#e0e0e0"}`,
-            borderRadius: q.corner,
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: q.positive ? q.color : "#ccc", letterSpacing: "0.07em", marginBottom: 8, textAlign: "center" }}>
-              {q.sub}
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: q.positive ? q.color : "#aaa", textAlign: "center", lineHeight: 1.3 }}>
-              {q.label}
-            </div>
-          </div>
-        ))}
+    <div style={{
+      padding: "20px 14px", minHeight: 110,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      background: positive ? `${color}10` : "#f5f5f5",
+      border: `1.5px solid ${positive ? `${color}45` : "#e0e0e0"}`,
+      borderRadius: radiusCorner,
+    }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: positive ? color : "#ccc", letterSpacing: "0.08em", marginBottom: 7, textAlign: "center" }}>
+        {sub}
       </div>
-
-      {/* SVG diagonal arrows overlay */}
-      <svg
-        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <marker id="va1" markerWidth="4" markerHeight="4" refX="3.5" refY="2" orient="auto">
-            <path d="M0,0 L4,2 L0,4 Z" fill={COLOR2} opacity="0.7" />
-          </marker>
-          <marker id="va2" markerWidth="4" markerHeight="4" refX="3.5" refY="2" orient="auto">
-            <path d="M0,0 L4,2 L0,4 Z" fill={COLOR} opacity="0.7" />
-          </marker>
-        </defs>
-        {/* Direction 1: BL (excess primary) → TR (complementary value) */}
-        <line x1="20" y1="83" x2="80" y2="20"
-          stroke={COLOR2} strokeWidth="0.7" strokeDasharray="4 2.5"
-          markerEnd="url(#va1)" opacity="0.65" />
-        {/* Direction 2: BR (excess complementary) → TL (primary value) */}
-        <line x1="80" y1="83" x2="20" y2="20"
-          stroke={COLOR} strokeWidth="0.7" strokeDasharray="4 2.5"
-          markerEnd="url(#va2)" opacity="0.65" />
-        {/* Center dot */}
-        <circle cx="50" cy="50" r="2.5" fill="white" stroke="#ccc" strokeWidth="0.8" />
-      </svg>
+      <div style={{ fontSize: 14, fontWeight: 700, color: positive ? color : "#aaa", textAlign: "center", lineHeight: 1.3 }}>
+        {label}
+      </div>
     </div>
   );
 }
 
-// ── Direction card ────────────────────────────────────────────────────────────
+function ValueSquareVisual({ data }: { data: SquareData }) {
+  const arrowStyle: React.CSSProperties = {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    color: "#ccc", fontSize: 20, userSelect: "none",
+  };
 
-function DirectionCard({ nr, color, fromExcess, towardValue, description }: {
-  nr: number; color: string; fromExcess: string; towardValue: string; description: string;
-}) {
   return (
-    <div style={{ background: `${color}08`, border: `1.5px solid ${color}30`, borderRadius: 12, padding: "16px 18px" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: "0.07em", marginBottom: 8 }}>
-        DEVELOPMENT DIRECTION {nr}
+    <div style={{ marginBottom: 8 }}>
+      {/* 3-column grid: value | connector | sister value */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 32px 1fr" }}>
+
+        {/* Row 1: positive values */}
+        <QuadBox label={data.primaryValue} sub="YOUR VALUE" color={COLOR} positive radiusCorner="12px 0 0 0" />
+        <div style={{ ...arrowStyle }}>
+          <span style={{ fontSize: 18, color: "#d0d0d0" }}>↔</span>
+        </div>
+        <QuadBox label={data.complementaryValue} sub="SISTER VALUE" color={COLOR2} positive radiusCorner="0 12px 0 0" />
+
+        {/* Row 2: vertical arrows */}
+        <div style={{ ...arrowStyle, padding: "8px 0" }}>
+          <span style={{ fontSize: 16, color: "#d0d0d0" }}>↓</span>
+        </div>
+        <div />
+        <div style={{ ...arrowStyle, padding: "8px 0" }}>
+          <span style={{ fontSize: 16, color: "#d0d0d0" }}>↓</span>
+        </div>
+
+        {/* Row 3: excess values */}
+        <QuadBox label={data.excessPrimary} sub="WHEN OVERDONE" color={COLOR} positive={false} radiusCorner="0 0 0 12px" />
+        <div />
+        <QuadBox label={data.excessComplementary} sub="WHEN OVERDONE" color={COLOR2} positive={false} radiusCorner="0 0 12px 0" />
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#555", marginBottom: 6 }}>
-        <span style={{ color, opacity: 0.8 }}>{fromExcess}</span>
-        <span style={{ color: "#ccc", margin: "0 6px" }}>→</span>
-        <span style={{ color }}>{towardValue}</span>
+
+      {/* Development paths — clearly labeled diagonal arrows */}
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Path 1: bottom-left → top-right */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", background: `${COLOR2}08`, border: `1.5px solid ${COLOR2}30`, borderRadius: 12 }}>
+          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <span style={{ fontSize: 22, color: COLOR2, lineHeight: 1 }}>↗</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: COLOR2, letterSpacing: "0.06em", marginTop: 2 }}>PATH 1</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 }}>
+              <span style={{ color: COLOR, opacity: 0.7 }}>{data.excessPrimary}</span>
+              <span style={{ color: "#ccc", margin: "0 6px" }}>→</span>
+              <span style={{ color: COLOR2 }}>{data.complementaryValue}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>{data.direction1}</div>
+          </div>
+        </div>
+
+        {/* Path 2: bottom-right → top-left */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", background: `${COLOR}08`, border: `1.5px solid ${COLOR}30`, borderRadius: 12 }}>
+          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <span style={{ fontSize: 22, color: COLOR, lineHeight: 1 }}>↖</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: COLOR, letterSpacing: "0.06em", marginTop: 2 }}>PATH 2</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 }}>
+              <span style={{ color: COLOR2, opacity: 0.7 }}>{data.excessComplementary}</span>
+              <span style={{ color: "#ccc", margin: "0 6px" }}>→</span>
+              <span style={{ color: COLOR }}>{data.primaryValue}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>{data.direction2}</div>
+          </div>
+        </div>
       </div>
-      <div style={{ fontSize: 13, color: "#888", lineHeight: 1.5 }}>{description}</div>
     </div>
   );
 }
@@ -218,7 +230,7 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
 }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <Label text={`DEVELOPMENT DIRECTION ${nr} — MY STEPS`} />
+      <Label text={`DEVELOPMENT PATH ${nr} — MY STEPS`} />
       <div style={{ background: "#fff", borderRadius: 14, border: `1.5px solid ${color}25`, overflow: "hidden" }}>
         <div style={{ background: `${color}07`, padding: "12px 18px", borderBottom: `1px solid ${color}15` }}>
           <span style={{ fontSize: 12, color, fontWeight: 600 }}>{fromExcess}</span>
@@ -230,7 +242,7 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
           <textarea
             value={steps}
             onChange={e => onSteps(e.target.value)}
-            placeholder="What concrete steps could I take…"
+            placeholder="Note your own steps here…"
             rows={3}
             style={{ ...inputSt(), resize: "none", lineHeight: 1.6, fontSize: 14 }}
           />
@@ -244,18 +256,14 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
 
           {suggestions.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#bbb", letterSpacing: "0.07em", marginBottom: 8 }}>VORSCHLÄGE — klicken zum Übernehmen</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#bbb", letterSpacing: "0.07em", marginBottom: 8 }}>SUGGESTIONS</div>
               {suggestions.map((s, i) => (
-                <div
-                  key={i}
-                  onClick={() => onSteps(steps ? steps + "\n• " + s : "• " + s)}
-                  style={{
-                    display: "flex", gap: 10, padding: "10px 14px",
-                    background: `${color}06`, border: `1px solid ${color}20`,
-                    borderRadius: 10, marginBottom: 6, cursor: "pointer",
-                  }}
-                >
-                  <span style={{ color, fontWeight: 700, flexShrink: 0 }}>+</span>
+                <div key={i} style={{
+                  display: "flex", gap: 10, padding: "10px 14px",
+                  background: `${color}06`, border: `1px solid ${color}20`,
+                  borderRadius: 10, marginBottom: 6,
+                }}>
+                  <span style={{ color, fontWeight: 700, flexShrink: 0 }}>→</span>
                   <span style={{ fontSize: 13, color: "#555", lineHeight: 1.4 }}>{s}</span>
                 </div>
               ))}
@@ -269,48 +277,51 @@ function DevelopmentSection({ nr, color, fromExcess, towardValue, description, s
 
 // ── Square step ───────────────────────────────────────────────────────────────
 
-function SquareStep({ data, steps1, onSteps1, steps2, onSteps2, sugg1, sugg2, loading1, loading2, onGetSugg1, onGetSugg2 }: {
+function SquareStep({ data, steps1, onSteps1, steps2, onSteps2, sugg1, sugg2, loading1, loading2, onGetSugg1, onGetSugg2, onPlayAgain }: {
   data: SquareData;
   steps1: string; onSteps1: (v: string) => void;
   steps2: string; onSteps2: (v: string) => void;
   sugg1: string[]; sugg2: string[];
   loading1: boolean; loading2: boolean;
   onGetSugg1: () => void; onGetSugg2: () => void;
+  onPlayAgain: () => void;
 }) {
   return wrap(<>
-    <Label text="YOUR VALUEEQUADRAT" />
+    <Label text="YOUR VALUE SQUARE" />
     <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 16px", lineHeight: 1.5 }}>
       Your value and its sister value — and what each becomes when taken too far.
     </p>
 
     <ValueSquareVisual data={data} />
 
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "16px 0 36px" }}>
-      <DirectionCard nr={1} color={COLOR2} fromExcess={data.excessPrimary} towardValue={data.complementaryValue} description={data.direction1} />
-      <DirectionCard nr={2} color={COLOR} fromExcess={data.excessComplementary} towardValue={data.primaryValue} description={data.direction2} />
+    <div style={{ marginTop: 32 }}>
+      <Label text="YOUR DEVELOPMENT" />
+      <DevelopmentSection
+        nr={1} color={COLOR2}
+        fromExcess={data.excessPrimary} towardValue={data.complementaryValue} description={data.direction1}
+        steps={steps1} onSteps={onSteps1}
+        suggestions={sugg1} loading={loading1} onGetSuggestions={onGetSugg1}
+      />
+      <DevelopmentSection
+        nr={2} color={COLOR}
+        fromExcess={data.excessComplementary} towardValue={data.primaryValue} description={data.direction2}
+        steps={steps2} onSteps={onSteps2}
+        suggestions={sugg2} loading={loading2} onGetSuggestions={onGetSugg2}
+      />
     </div>
 
-    <Label text="YOUR DEVELOPMENT" />
-
-    <DevelopmentSection
-      nr={1} color={COLOR2}
-      fromExcess={data.excessPrimary} towardValue={data.complementaryValue} description={data.direction1}
-      steps={steps1} onSteps={onSteps1}
-      suggestions={sugg1} loading={loading1} onGetSuggestions={onGetSugg1}
-    />
-    <DevelopmentSection
-      nr={2} color={COLOR}
-      fromExcess={data.excessComplementary} towardValue={data.primaryValue} description={data.direction2}
-      steps={steps2} onSteps={onSteps2}
-      suggestions={sugg2} loading={loading2} onGetSuggestions={onGetSugg2}
-    />
+    <div style={{ borderTop: "1px solid #eee", paddingTop: 24, marginTop: 8 }}>
+      <button onClick={onPlayAgain} style={{ ...btnSt("#111", true), width: "100%" }}>
+        ↩ Play again with a new value
+      </button>
+    </div>
   </>);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function ValueSquarePage() {
-  const [step, setStep] = useState<Step>("enter");
+  const [step, setStep] = useState<AppStep>("enter");
   const [primaryValue, setPrimaryValue] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [squareData, setSquareData] = useState<SquareData | null>(null);
@@ -320,6 +331,15 @@ export default function ValueSquarePage() {
   const [sugg2, setSugg2] = useState<string[]>([]);
   const [loading1, setLoading1] = useState(false);
   const [loading2, setLoading2] = useState(false);
+
+  function handlePlayAgain() {
+    setPrimaryValue("");
+    setSuggestions([]);
+    setSquareData(null);
+    setSteps1(""); setSteps2("");
+    setSugg1([]); setSugg2([]);
+    setStep("enter");
+  }
 
   async function handleEnter() {
     if (!primaryValue.trim()) return;
@@ -385,6 +405,7 @@ export default function ValueSquarePage() {
       loading1={loading1} loading2={loading2}
       onGetSugg1={() => getStepSuggestions(1)}
       onGetSugg2={() => getStepSuggestions(2)}
+      onPlayAgain={handlePlayAgain}
     />
   );
   return null;

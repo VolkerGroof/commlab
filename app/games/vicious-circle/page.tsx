@@ -56,6 +56,12 @@ function wrap(content: React.ReactNode) {
 }
 
 // ── Circle Visual (SVG) ───────────────────────────────────────────────────────
+// viewBox 600×420:
+//   TOP box:    x=200, y=15,  w=200, h=85  → center(300,57), right=400
+//   RIGHT oval: cx=548, cy=210, rx=52, ry=50 → top=160, bottom=260, left=496
+//   BOTTOM box: x=200, y=320, w=200, h=85  → center(300,362), left=200
+//   LEFT oval:  cx=52,  cy=210, rx=52, ry=50 → top=160, bottom=260, right=104
+//   Arrow labels in the 4 inner corner zones (well clear of all shapes)
 
 function CircleVisual({ name1, name2, data, active, step }: {
   name1: string; name2: string;
@@ -63,114 +69,86 @@ function CircleVisual({ name1, name2, data, active, step }: {
   active?: "s1" | "s2" | "f1" | "f2";
   step?: SoloStep;
 }) {
-  // Progressive reveal: which nodes are visible
   const stepOrder: SoloStep[] = ["s1", "s2", "f2", "f1", "reflect"];
   const idx = step ? stepOrder.indexOf(step) : 4;
   const show = { s1: idx >= 0, s2: idx >= 1, f2: idx >= 2, f1: idx >= 3 };
 
-  // Arrows visible only when both connected nodes are shown
-  const arrTopRight  = show.s1 && show.f2;  // TOP → RIGHT
-  const arrRightBot  = show.f2 && show.s2;  // RIGHT → BOTTOM
-  const arrBotLeft   = show.s2 && show.f1;  // BOTTOM → LEFT
-  const arrLeftTop   = show.f1 && show.s1;  // LEFT → TOP
+  const arrTopRight = show.s1 && show.f2;
+  const arrRightBot = show.f2 && show.s2;
+  const arrBotLeft  = show.s2 && show.f1;
+  const arrLeftTop  = show.f1 && show.s1;
 
-  // Layout constants — wider viewBox so ovals aren't clipped
-  // viewBox: 520 × 360
-  // TOP box: x=170, y=12, w=180, h=82 → center (260, 53)
-  // RIGHT oval: cx=460, cy=180, rx=58, ry=52 → right edge=518 ✓
-  // BOTTOM box: x=170, y=266, w=180, h=82 → center (260, 307)
-  // LEFT oval: cx=60, cy=180, rx=58, ry=52 → left edge=2 ✓
-  // Arrows: TOP right(350,53) → RIGHT top(460,128), etc.
   const DARK = "#444";
-  const stmtFill  = (k: "s1"|"s2") => data[k] ? `${PINK}14`   : active === k ? `${PINK}08`   : "#f9f9f9";
-  const feelFill  = (k: "f1"|"f2") => data[k] ? `${ORANGE}14` : active === k ? `${ORANGE}08` : "#f9f9f9";
-  const stmtStroke= (k: "s1"|"s2") => active===k ? PINK   : data[k] ? `${PINK}60`   : "#e0e0e0";
-  const feelStroke= (k: "f1"|"f2") => active===k ? ORANGE : data[k] ? `${ORANGE}60` : "#e0e0e0";
-  const stmtSW    = (k: "s1"|"s2") => active===k ? 2 : 1.5;
-  const feelSW    = (k: "f1"|"f2") => active===k ? 2 : 1.5;
-  const trunc = (s: string | undefined, n = 20) => s ? (s.length > n ? s.slice(0, n) + "…" : s) : "";
+  const sF = (k: "s1"|"s2") => data[k] ? `${PINK}15`   : active===k ? `${PINK}09`   : "#f9f9f9";
+  const fF = (k: "f1"|"f2") => data[k] ? `${ORANGE}15` : active===k ? `${ORANGE}09` : "#f9f9f9";
+  const sS = (k: "s1"|"s2") => active===k ? PINK   : data[k] ? `${PINK}70`   : "#e0e0e0";
+  const fS = (k: "f1"|"f2") => active===k ? ORANGE : data[k] ? `${ORANGE}70` : "#e0e0e0";
+  const sW = (k: "s1"|"s2") => active===k ? 2.5 : 1.5;
+  const fW = (k: "f1"|"f2") => active===k ? 2.5 : 1.5;
+  const trunc = (s: string|undefined, n=22) => s ? (s.length>n ? s.slice(0,n)+"…" : s) : "";
 
   return (
-    <svg viewBox="0 0 520 360" style={{ width: "100%", maxWidth: 520, display: "block", margin: "0 auto" }}>
+    <svg viewBox="0 0 600 420" style={{ width: "100%", maxWidth: 580, display: "block", margin: "0 auto" }}>
       <defs>
-        <marker id="vc-arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
-          <path d="M0,0 L0,7 L7,3.5 Z" fill={DARK} />
+        <marker id="vc-arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <path d="M0,0 L0,8 L8,4 Z" fill={DARK} />
         </marker>
-        {/* Text paths — all go left-to-right for readable labels */}
-        <path id="tp-tr" d="M 350,53 Q 460,53 460,128" />
-        <path id="tp-rb" d="M 350,307 Q 460,307 460,232" />
-        <path id="tp-bl" d="M 170,307 Q 60,307 60,232" />
-        <path id="tp-lt" d="M 60,128 Q 60,53 170,53" />
       </defs>
 
-      {/* Arrows — clockwise, only when both nodes visible */}
-      {arrTopRight && <>
-        <path d="M 350,53 Q 460,53 460,128" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text fontSize="8" fill={DARK}>
-          <textPath href="#tp-tr" startOffset="48%" textAnchor="middle" dy="-5">feels because of it</textPath>
-        </text>
-      </>}
-      {arrRightBot && <>
-        <path d="M 460,232 Q 460,307 350,307" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text fontSize="8" fill={DARK}>
-          <textPath href="#tp-rb" startOffset="52%" textAnchor="middle" dy="-5">acts accordingly</textPath>
-        </text>
-      </>}
-      {arrBotLeft && <>
-        <path d="M 170,307 Q 60,307 60,232" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text fontSize="8" fill={DARK}>
-          <textPath href="#tp-bl" startOffset="52%" textAnchor="middle" dy="-5">feels because of it</textPath>
-        </text>
-      </>}
-      {arrLeftTop && <>
-        <path d="M 60,128 Q 60,53 170,53" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#vc-arr)" />
-        <text fontSize="8" fill={DARK}>
-          <textPath href="#tp-lt" startOffset="48%" textAnchor="middle" dy="-5">acts accordingly</textPath>
-        </text>
-      </>}
+      {/* ── Arrows (outside the nodes, no overlap) ── */}
+      {arrTopRight && <path d="M 400,57 Q 548,57 548,160" fill="none" stroke={DARK} strokeWidth="1.8" markerEnd="url(#vc-arr)" />}
+      {arrRightBot  && <path d="M 548,260 Q 548,362 400,362" fill="none" stroke={DARK} strokeWidth="1.8" markerEnd="url(#vc-arr)" />}
+      {arrBotLeft   && <path d="M 200,362 Q 52,362 52,260"  fill="none" stroke={DARK} strokeWidth="1.8" markerEnd="url(#vc-arr)" />}
+      {arrLeftTop   && <path d="M 52,160  Q 52,57  200,57"  fill="none" stroke={DARK} strokeWidth="1.8" markerEnd="url(#vc-arr)" />}
 
-      {/* TOP box — Statement Person 1 */}
+      {/* ── Arrow labels in inner corner zones (clear of all shapes & arrows) ── */}
+      {arrTopRight && <text x="432" y="116" fontSize="11" fill={DARK} textAnchor="start" fontStyle="italic">feels because of it</text>}
+      {arrRightBot  && <text x="432" y="307" fontSize="11" fill={DARK} textAnchor="start" fontStyle="italic">acts accordingly</text>}
+      {arrBotLeft   && <text x="168" y="307" fontSize="11" fill={DARK} textAnchor="end"   fontStyle="italic">feels because of it</text>}
+      {arrLeftTop   && <text x="168" y="116" fontSize="11" fill={DARK} textAnchor="end"   fontStyle="italic">acts accordingly</text>}
+
+      {/* ── TOP box — Statement / Behavior Person 1 ── */}
       {show.s1 && <>
-        <rect x="170" y="12" width="180" height="82" rx="10"
-          fill={stmtFill("s1")} stroke={stmtStroke("s1")} strokeWidth={stmtSW("s1")} />
-        <text x="260" y="38" textAnchor="middle" fontSize="8" fontWeight="700" fill={PINK} letterSpacing="0.06em">STATEMENT / BEHAVIOR</text>
-        <text x="260" y="53" textAnchor="middle" fontSize="10" fontWeight="700" fill={PINK}>{name1}</text>
+        <rect x="200" y="15" width="200" height="85" rx="12"
+          fill={sF("s1")} stroke={sS("s1")} strokeWidth={sW("s1")} />
+        <text x="300" y="41" textAnchor="middle" fontSize="9" fontWeight="700" fill={PINK} letterSpacing="0.07em">STATEMENT / BEHAVIOR</text>
+        <text x="300" y="58" textAnchor="middle" fontSize="13" fontWeight="700" fill={PINK}>{name1}</text>
         {data.s1
-          ? <text x="260" y="76" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.s1)}</text>
-          : active === "s1" && <text x="260" y="76" textAnchor="middle" fontSize="9" fill="#bbb">enter below…</text>}
+          ? <text x="300" y="81" textAnchor="middle" fontSize="11" fill="#555">{trunc(data.s1)}</text>
+          : active==="s1" && <text x="300" y="81" textAnchor="middle" fontSize="10" fill="#ccc">enter below…</text>}
       </>}
 
-      {/* RIGHT oval — Feeling Person 2 */}
+      {/* ── RIGHT oval — Inner Feeling Person 2 ── */}
       {show.f2 && <>
-        <ellipse cx="460" cy="180" rx="58" ry="52"
-          fill={feelFill("f2")} stroke={feelStroke("f2")} strokeWidth={feelSW("f2")} />
-        <text x="460" y="170" textAnchor="middle" fontSize="8" fontWeight="700" fill={ORANGE} letterSpacing="0.05em">INNER FEELING</text>
-        <text x="460" y="184" textAnchor="middle" fontSize="10" fontWeight="700" fill={ORANGE}>{name2}</text>
+        <ellipse cx="548" cy="210" rx="52" ry="50"
+          fill={fF("f2")} stroke={fS("f2")} strokeWidth={fW("f2")} />
+        <text x="548" y="200" textAnchor="middle" fontSize="9" fontWeight="700" fill={ORANGE} letterSpacing="0.06em">INNER FEELING</text>
+        <text x="548" y="217" textAnchor="middle" fontSize="13" fontWeight="700" fill={ORANGE}>{name2}</text>
         {data.f2
-          ? <text x="460" y="201" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.f2, 10)}</text>
-          : active === "f2" && <text x="460" y="200" textAnchor="middle" fontSize="9" fill="#bbb">enter…</text>}
+          ? <text x="548" y="236" textAnchor="middle" fontSize="11" fill="#555">{trunc(data.f2,12)}</text>
+          : active==="f2" && <text x="548" y="235" textAnchor="middle" fontSize="10" fill="#ccc">enter…</text>}
       </>}
 
-      {/* BOTTOM box — Statement Person 2 */}
+      {/* ── BOTTOM box — Statement / Behavior Person 2 ── */}
       {show.s2 && <>
-        <rect x="170" y="266" width="180" height="82" rx="10"
-          fill={stmtFill("s2")} stroke={stmtStroke("s2")} strokeWidth={stmtSW("s2")} />
-        <text x="260" y="291" textAnchor="middle" fontSize="8" fontWeight="700" fill={PINK} letterSpacing="0.06em">STATEMENT / BEHAVIOR</text>
-        <text x="260" y="305" textAnchor="middle" fontSize="10" fontWeight="700" fill={PINK}>{name2}</text>
+        <rect x="200" y="320" width="200" height="85" rx="12"
+          fill={sF("s2")} stroke={sS("s2")} strokeWidth={sW("s2")} />
+        <text x="300" y="346" textAnchor="middle" fontSize="9" fontWeight="700" fill={PINK} letterSpacing="0.07em">STATEMENT / BEHAVIOR</text>
+        <text x="300" y="363" textAnchor="middle" fontSize="13" fontWeight="700" fill={PINK}>{name2}</text>
         {data.s2
-          ? <text x="260" y="328" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.s2)}</text>
-          : active === "s2" && <text x="260" y="328" textAnchor="middle" fontSize="9" fill="#bbb">enter below…</text>}
+          ? <text x="300" y="386" textAnchor="middle" fontSize="11" fill="#555">{trunc(data.s2)}</text>
+          : active==="s2" && <text x="300" y="386" textAnchor="middle" fontSize="10" fill="#ccc">enter below…</text>}
       </>}
 
-      {/* LEFT oval — Feeling Person 1 */}
+      {/* ── LEFT oval — Inner Feeling Person 1 ── */}
       {show.f1 && <>
-        <ellipse cx="60" cy="180" rx="58" ry="52"
-          fill={feelFill("f1")} stroke={feelStroke("f1")} strokeWidth={feelSW("f1")} />
-        <text x="60" y="170" textAnchor="middle" fontSize="8" fontWeight="700" fill={ORANGE} letterSpacing="0.05em">INNER FEELING</text>
-        <text x="60" y="184" textAnchor="middle" fontSize="10" fontWeight="700" fill={ORANGE}>{name1}</text>
+        <ellipse cx="52" cy="210" rx="52" ry="50"
+          fill={fF("f1")} stroke={fS("f1")} strokeWidth={fW("f1")} />
+        <text x="52" y="200" textAnchor="middle" fontSize="9" fontWeight="700" fill={ORANGE} letterSpacing="0.06em">INNER FEELING</text>
+        <text x="52" y="217" textAnchor="middle" fontSize="13" fontWeight="700" fill={ORANGE}>{name1}</text>
         {data.f1
-          ? <text x="60" y="201" textAnchor="middle" fontSize="10" fill="#555">{trunc(data.f1, 10)}</text>
-          : active === "f1" && <text x="60" y="200" textAnchor="middle" fontSize="9" fill="#bbb">enter…</text>}
+          ? <text x="52" y="236" textAnchor="middle" fontSize="11" fill="#555">{trunc(data.f1,12)}</text>
+          : active==="f1" && <text x="52" y="235" textAnchor="middle" fontSize="10" fill="#ccc">enter…</text>}
       </>}
     </svg>
   );
@@ -548,11 +526,11 @@ function ViciousCircleInner() {
 
       <p style={{ fontSize: 12, fontWeight: 600, color: PINK, margin: "0 0 4px" }}>Filling in as: <strong>{myName}</strong></p>
       <CircleVisual
-        name1={player === 1 ? name1 : name2}
-        name2={player === 1 ? name2 : name1}
-        step={player === 1 ? step : (p2stepSwap[step] ?? step)}
-        data={player === 1 ? data : { s1: data.s2, s2: data.s1, f1: data.f2, f2: data.f1 }}
-        active={step !== "reflect" ? (player === 1 ? step as "s1"|"s2"|"f1"|"f2" : p2swap[step]) : undefined}
+        name1={myName}
+        name2={otherName}
+        step={step}
+        data={data}
+        active={step !== "reflect" ? step as "s1"|"s2"|"f1"|"f2" : undefined}
       />
 
       <div style={{ marginTop: 20 }}>
