@@ -29,7 +29,7 @@ QUESTION RULES (when needsMore: true):
 - You may use the "allergy test": ask what behaviors in OTHERS bother the person most
 - Questions should feel personal and introspective, not like a test
 
-RESPONSE LANGUAGE: Match the language of the user's description exactly.
+RESPONSE LANGUAGE: Always respond in English, regardless of the language the user writes in.
 
 Return ONLY valid JSON, no markdown:
 

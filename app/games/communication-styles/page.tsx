@@ -233,56 +233,52 @@ function QuestionsStep({ questions, onSubmit }: {
   questions: { question: string; options: string[] }[];
   onSubmit: (answers: { question: string; answer: string }[]) => void;
 }) {
-  const [selected, setSelected] = useState<(string | null)[]>(questions.map(() => null));
-  const allAnswered = selected.every(s => s !== null);
+  const [current, setCurrent] = useState(0);
+  const [answers, setAnswers] = useState<{ question: string; answer: string }[]>([]);
+
+  function pick(option: string) {
+    const newAnswers = [...answers, { question: questions[current].question, answer: option }];
+    setAnswers(newAnswers);
+    if (current < questions.length - 1) {
+      setTimeout(() => setCurrent(c => c + 1), 200);
+    } else {
+      setTimeout(() => onSubmit(newAnswers), 200);
+    }
+  }
+
+  const q = questions[current];
 
   return wrap(<>
-    <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 6px" }}>A FEW MORE QUESTIONS</p>
-    <p style={{ fontSize: 15, color: "#555", margin: "0 0 28px", lineHeight: 1.5 }}>
-      To get a clearer picture, answer these briefly — choose whatever resonates most.
+    <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 6px" }}>
+      QUESTION {current + 1} OF {questions.length}
     </p>
+    <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+      {questions.map((_, i) => (
+        <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= current ? "#639922" : "#e8e8e8" }} />
+      ))}
+    </div>
 
-    {questions.map((q, qi) => (
-      <div key={qi} style={{ marginBottom: 28 }}>
-        <p style={{ fontSize: 14, fontWeight: 600, color: "#333", margin: "0 0 12px", lineHeight: 1.5 }}>
-          {q.question}
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {q.options.map((opt, oi) => {
-            const isSelected = selected[qi] === opt;
-            return (
-              <button
-                key={oi}
-                onClick={() => setSelected(prev => { const n = [...prev]; n[qi] = opt; return n; })}
-                style={{
-                  padding: "12px 16px", borderRadius: 10, fontSize: 14, cursor: "pointer",
-                  border: `1.5px solid ${isSelected ? "#639922" : "#e8e8e8"}`,
-                  background: isSelected ? "#63992212" : "#fff",
-                  color: isSelected ? "#639922" : "#555",
-                  textAlign: "left", fontFamily: FONT, lineHeight: 1.4, fontWeight: isSelected ? 600 : 400,
-                  transition: "all 0.15s",
-                }}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    ))}
-
-    <button
-      onClick={() => onSubmit(questions.map((q, i) => ({ question: q.question, answer: selected[i]! })))}
-      disabled={!allAnswered}
-      style={{
-        width: "100%", padding: "14px 24px", borderRadius: 12, fontSize: 15, fontWeight: 600,
-        cursor: allAnswered ? "pointer" : "not-allowed", border: "none", fontFamily: FONT,
-        background: allAnswered ? "#639922" : "#e8e8e8",
-        color: allAnswered ? "#fff" : "#bbb",
-      }}
-    >
-      Discover my styles →
-    </button>
+    <p style={{ fontSize: 16, fontWeight: 600, color: "#333", margin: "0 0 20px", lineHeight: 1.5 }}>
+      {q.question}
+    </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {q.options.map((opt, i) => (
+        <button
+          key={i}
+          onClick={() => pick(opt)}
+          style={{
+            padding: "14px 18px", borderRadius: 12, fontSize: 14, cursor: "pointer",
+            border: "1.5px solid #e8e8e8", background: "#fff", color: "#555",
+            textAlign: "left", fontFamily: FONT, lineHeight: 1.4,
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = "#639922"; (e.target as HTMLElement).style.color = "#639922"; }}
+          onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = "#e8e8e8"; (e.target as HTMLElement).style.color = "#555"; }}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
   </>);
 }
 
