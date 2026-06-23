@@ -91,21 +91,21 @@ function MeetingDiagram({ entry, title, participants, isTeam }: {
 
   return (
     <svg viewBox="0 0 600 380" style={{ width: "100%", maxWidth: 600, display: "block", margin: "0 auto" }}>
-      {/* Center oval */}
-      <ellipse cx="300" cy="190" rx="90" ry="68" fill="#fff5f0" stroke={COLOR} strokeWidth="2.5" />
+      {/* Center oval — rx/ry smaller to give arrows breathing room */}
+      <ellipse cx="300" cy="190" rx="72" ry="54" fill="#fff5f0" stroke={COLOR} strokeWidth="2.5" />
       <text x="300" y="183" textAnchor="middle" fontSize="11" fontWeight="700" fill={COLOR} letterSpacing="0.05em">MEETING</text>
       <text x="300" y="197" textAnchor="middle" fontSize="10" fill="#888">{title.length > 22 ? title.slice(0,22)+"…" : title}</text>
       {isTeam && <text x="300" y="212" textAnchor="middle" fontSize="9" fill="#aaa">Team: {(participants ?? []).join(", ").slice(0,28)}</text>}
 
       {/* Arrows */}
-      {/* LEFT → center */}
-      <line x1="165" y1="190" x2="210" y2="190" stroke="#7c6fcd" strokeWidth="2.5" markerEnd="url(#arrP)"/>
-      {/* center → RIGHT */}
-      <line x1="390" y1="190" x2="435" y2="190" stroke="#1d9e75" strokeWidth="2.5" markerEnd="url(#arrG)"/>
-      {/* TOP ↓ */}
-      <line x1="300" y1="122" x2="300" y2="152" stroke="#e07a3a" strokeWidth="2.5" markerEnd="url(#arrT)" />
-      {/* center ↓ BOTTOM */}
-      <line x1="300" y1="258" x2="300" y2="228" stroke="#378add" strokeWidth="2.5" markerEnd="url(#arrI)" />
+      {/* LEFT box right edge (159) → oval left (228) with gap */}
+      <line x1="163" y1="190" x2="218" y2="190" stroke="#7c6fcd" strokeWidth="2.5" markerEnd="url(#arrP)"/>
+      {/* oval right (372) → RIGHT box left edge (441) with gap */}
+      <line x1="382" y1="190" x2="437" y2="190" stroke="#1d9e75" strokeWidth="2.5" markerEnd="url(#arrG)"/>
+      {/* TOP box bottom (116) → oval top (136) with gap */}
+      <line x1="300" y1="116" x2="300" y2="128" stroke="#e07a3a" strokeWidth="2.5" markerEnd="url(#arrT)" />
+      {/* oval bottom (244) → BOTTOM box top (264) with gap — arrow points UP into oval */}
+      <line x1="300" y1="260" x2="300" y2="252" stroke="#378add" strokeWidth="2.5" markerEnd="url(#arrI)" />
 
       <defs>
         {[["arrP","#7c6fcd"],["arrG","#1d9e75"],["arrT","#e07a3a"],["arrI","#378add"]].map(([id,col]) => (
@@ -278,18 +278,7 @@ function MeetingPrepInner() {
     <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 4px" }}>YOUR MEETING PREPARATION</p>
     <h2 style={{ fontSize: 20, fontWeight: 700, color: COLOR, margin: "0 0 20px" }}>{meetingTitle}</h2>
     <MeetingDiagram entry={entry} title={meetingTitle} />
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "20px 0 28px" }}>
-      {DIMS.map(d => (
-        <div key={d.key} style={{ background: "#fff", borderRadius: 12, border: `1.5px solid ${d.color}30`, overflow: "hidden" }}>
-          <div style={{ background: `${d.color}08`, borderBottom: `1px solid ${d.color}20`, padding: "8px 16px", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: d.color, letterSpacing: "0.06em" }}>{d.label.toUpperCase()}</span>
-            <span style={{ fontSize: 10, color: d.color, opacity: 0.6 }}>{d.sub}</span>
-          </div>
-          <p style={{ fontSize: 14, color: "#555", padding: "12px 16px", margin: 0, lineHeight: 1.6 }}>{entry[d.key] || <span style={{ color: "#ccc" }}>—</span>}</p>
-        </div>
-      ))}
-    </div>
-    <div style={{ borderTop: "1px solid #eee", paddingTop: 24 }}>
+    <div style={{ borderTop: "1px solid #eee", paddingTop: 24, marginTop: 20 }}>
       <button onClick={() => { setUiPhase("start"); setEntry({ history:"",topic:"",interpersonal:"",goal:"" }); setSoloStep(0); setMeetingTitle(""); }} style={{ width: "100%", padding: "12px", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", border: "1.5px solid #ddd", background: "#fff", color: "#555", fontFamily: FONT }}>
         ↩ Prepare a different meeting
       </button>
@@ -481,17 +470,7 @@ function MeetingPrepInner() {
       <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 4px" }}>TEAM PREPARATION</p>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: COLOR, margin: "0 0 20px" }}>{session.title}</h2>
       <MeetingDiagram entry={consolidated} title={session.title} participants={session.participants.map(p => p.name)} isTeam />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "20px 0 28px" }}>
-        {DIMS.map(d => (
-          <div key={d.key} style={{ background: "#fff", borderRadius: 12, border: `1.5px solid ${d.color}30`, overflow: "hidden" }}>
-            <div style={{ background: `${d.color}08`, borderBottom: `1px solid ${d.color}20`, padding: "8px 16px" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: d.color, letterSpacing: "0.06em" }}>{d.label.toUpperCase()}</span>
-            </div>
-            <p style={{ fontSize: 14, color: "#555", padding: "12px 16px", margin: 0, lineHeight: 1.6 }}>{consolidated[d.key] || <span style={{ color: "#ccc" }}>—</span>}</p>
-          </div>
-        ))}
-      </div>
-      <div style={{ borderTop: "1px solid #eee", paddingTop: 24 }}>
+      <div style={{ borderTop: "1px solid #eee", paddingTop: 24, marginTop: 20 }}>
         <button onClick={() => setUiPhase("start")} style={{ width: "100%", padding: "12px", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", border: "1.5px solid #ddd", background: "#fff", color: "#555", fontFamily: FONT }}>
           ↩ Prepare another meeting
         </button>
