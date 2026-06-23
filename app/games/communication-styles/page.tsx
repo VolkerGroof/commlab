@@ -87,17 +87,30 @@ function useVoice() {
       chunksRef.current = [];
       const mr = new MediaRecorder(stream);
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      const HALLUCINATIONS = ["bye", "bye.", "thanks for watching", "thank you", "thank you.", "you", "you."];
+
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         setListening(false);
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+
+        if (blob.size < 8000) {
+          setVoiceError(`No audio captured (${blob.size} bytes) — check microphone in browser & OS settings`);
+          return;
+        }
+
         setTransc(true);
         try {
-          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
           const fd = new FormData();
           fd.append("audio", blob, "recording.webm");
           const res = await fetch("/api/games/communication-styles/transcribe", { method: "POST", body: fd });
           const { text: transcript } = await res.json();
-          if (transcript?.trim()) setText(prev => prev ? prev + " " + transcript.trim() : transcript.trim());
+          const cleaned = transcript?.trim() ?? "";
+          if (HALLUCINATIONS.includes(cleaned.toLowerCase())) {
+            setVoiceError(`Mic captured silence — got "${cleaned}". Check microphone settings.`);
+          } else if (cleaned) {
+            setText(prev => prev ? prev + " " + cleaned : cleaned);
+          }
         } catch {
           setVoiceError("Transcription failed — please try again");
         } finally {
@@ -176,9 +189,6 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
         </button>
       )}
     </div>
-    {supported && !listening && !transcribing && !voiceError && (
-      <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 12px" }}>🎤 Tap the mic, speak, tap ⏹ — Whisper transcribes it</p>
-    )}
     {listening && (
       <p style={{ fontSize: 12, color: "#d4537e", margin: "0 0 12px", fontWeight: 600 }}>● Recording… tap ⏹ to stop and transcribe</p>
     )}
@@ -190,6 +200,7 @@ function PromptStep({ onContinue }: { onContinue: (text: string) => void }) {
     )}
 
     <button
+      suppressHydrationWarning
       onClick={() => onContinue(text.trim())}
       disabled={text.trim().length < 30}
       style={{
