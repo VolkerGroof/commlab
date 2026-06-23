@@ -70,8 +70,16 @@ const games = [
     available: true,
   },
   {
-    id: "fierce-conversation",
+    id: "meeting-prep",
     number: "09",
+    title: "Meeting Preparation",
+    description: "Map the 4 dimensions of any meeting — background, topic, dynamics, and goal — alone or with your team.",
+    color: "#c0392b",
+    available: true,
+  },
+  {
+    id: "fierce-conversation",
+    number: "10",
     title: "Fierce Conversation",
     description: "Prepare the conversation you've been putting off. 7 steps. 60 seconds.",
     color: "#8e44ad",
