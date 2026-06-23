@@ -89,6 +89,36 @@ function QuadrantBox({ type, attrs }: { type: keyof typeof QUADRANT_CONFIG; attr
   );
 }
 
+// ── Copy button with feedback ─────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <>
+      <style>{`@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
+      <button
+        onClick={handleCopy}
+        style={{
+          padding: "12px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          border: `1.5px solid ${copied ? "#1d9e75" : `${COLOR}50`}`,
+          background: copied ? "#1d9e7515" : `${COLOR}08`,
+          color: copied ? "#1d9e75" : COLOR,
+          fontFamily: FONT, whiteSpace: "nowrap",
+          animation: copied ? "pop 0.25s ease" : "none",
+          transition: "background 0.2s, border-color 0.2s, color 0.2s",
+        }}
+      >
+        {copied ? "Copied ✓" : "Copy →"}
+      </button>
+    </>
+  );
+}
+
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function postSession(action: string, data: Record<string, unknown>): Promise<JohariSession | null> {
@@ -329,10 +359,7 @@ function JohariInner() {
           <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 8px" }}>Share this link with your team:</p>
           <div style={{ display: "flex", gap: 8 }}>
             <input readOnly value={shareUrl} style={{ ...inputSt(), fontSize: 12, flex: 1 }} />
-            <button onClick={() => navigator.clipboard.writeText(shareUrl)} style={{
-              padding: "12px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              border: `1.5px solid ${COLOR}50`, background: `${COLOR}08`, color: COLOR, fontFamily: FONT, whiteSpace: "nowrap",
-            }}>Copy →</button>
+            <CopyButton text={shareUrl} />
           </div>
         </div>
       )}
@@ -416,9 +443,16 @@ function JohariInner() {
       <p style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", margin: "0 0 6px" }}>
         {currentPersonIdx + 1} OF {allPeople.length}
       </p>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111", margin: "0 0 6px" }}>
-        {isSelf ? "Select traits that apply to you" : `Select traits that apply to ${rateeName}`}
-      </h2>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "0 0 6px" }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111", margin: 0 }}>
+          {isSelf ? "Select traits that apply to you" : `Select traits that apply to ${rateeName}`}
+        </h2>
+        {chipSelected.length > 0 && (
+          <span style={{ fontSize: 15, fontWeight: 700, color: COLOR, background: `${COLOR}15`, borderRadius: 20, padding: "2px 10px" }}>
+            {chipSelected.length}
+          </span>
+        )}
+      </div>
       <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 20px" }}>
         Choose as many as feel true — or none if none fit.
       </p>
