@@ -53,6 +53,14 @@ const games = [
     color: "#639922",
     available: true,
   },
+  {
+    id: "fierce-conversation",
+    number: "07",
+    title: "Fierce Conversation",
+    description: "Prepare the conversation you've been putting off. 7 steps. 60 seconds. Then you stop talking.",
+    color: "#8e44ad",
+    available: true,
+  },
 ];
 
 const bullets = [
