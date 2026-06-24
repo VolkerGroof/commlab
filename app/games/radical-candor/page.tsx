@@ -42,7 +42,7 @@ function wrap(content: React.ReactNode) {
     <div style={{ minHeight:"100vh", background:"#f7f7f5", fontFamily:FONT }}>
       <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:10, background:"#fff", borderBottom:"1px solid #eee", padding:"0 28px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <Link href="/" style={{ fontSize:13, color:"#999", textDecoration:"none" }}>← CommLab</Link>
-        <span style={{ fontSize:14, fontWeight:600, color:"#111" }}>Radical Candor Training</span>
+        <span style={{ fontSize:14, fontWeight:600, color:"#111" }}>Feedback Training</span>
         <span />
       </div>
       <div style={{ paddingTop:52 }}>

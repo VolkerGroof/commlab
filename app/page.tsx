@@ -88,7 +88,7 @@ const games = [
   {
     id: "radical-candor",
     number: "11",
-    title: "Radical Candor Training",
+    title: "Feedback Training",
     description: "Practice giving feedback that's both caring and direct — get scored on the Radical Candor matrix.",
     color: "#e91e63",
     available: true,
