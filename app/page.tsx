@@ -86,8 +86,16 @@ const games = [
     available: true,
   },
   {
-    id: "fierce-conversation",
+    id: "radical-candor",
     number: "11",
+    title: "Radical Candor Training",
+    description: "Practice giving feedback that's both caring and direct — get scored on the Radical Candor matrix.",
+    color: "#e91e63",
+    available: true,
+  },
+  {
+    id: "fierce-conversation",
+    number: "12",
     title: "Fierce Conversation",
     description: "Prepare the conversation you've been putting off. 7 steps. 60 seconds.",
     color: "#8e44ad",
