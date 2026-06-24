@@ -698,7 +698,7 @@ function CultureInner() {
               <p style={{ fontSize:13, color:"#1d9e75", margin:0, lineHeight:1.5 }}>💡 {g.tip}</p>
             </div>
           ))}
-          <button onClick={() => { navigator.clipboard.writeText(guideText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${COLOR}50`, background:`${COLOR}08`, color:copied ? "#1d9e75" : COLOR, fontFamily:FONT }}>
+          <button onClick={() => { navigator.clipboard.writeText(guideText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:FONT, border:`1.5px solid ${copied ? "#1d9e75" : `${COLOR}50`}`, background: copied ? "#1d9e7515" : `${COLOR}08`, color: copied ? "#1d9e75" : COLOR, transition:"all 0.2s" }}>
             {copied ? "Copied ✓" : "Copy my guide to clipboard"}
           </button>
         </>
