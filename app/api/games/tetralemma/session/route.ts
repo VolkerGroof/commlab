@@ -85,8 +85,13 @@ export async function POST(req: NextRequest) {
 
   if (action === "set-solution") {
     const s = await mutateTetralemma(body.id, sess => {
-      sess.solution = body.solution;
-      sess.phase    = "done";
+      if (body.role === "host")  sess.solutionHost  = body.solution;
+      if (body.role === "guest") sess.solutionGuest = body.solution;
+      if (!body.role) sess.solution = body.solution; // solo
+      // Done when solo, or both pair solutions submitted
+      const pairDone = sess.solutionHost && sess.solutionGuest;
+      const soloDone = !body.role && body.solution;
+      if (pairDone || soloDone) sess.phase = "done";
     });
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }

@@ -174,7 +174,7 @@ function TetralemmaInner() {
     if (session.phase === "both")    { setPhase("both");    setBothContexts(session.bothContexts); }
     if (session.phase === "neither") { setPhase("neither"); setNeitherContexts(session.neitherContexts); }
     if (session.phase === "tabula")  { setPhase("tabula"); }
-    if (session.phase === "done")    { setSolution(session.solution); setMode("done"); }
+    if (session.phase === "done")    { setSolution(session.solution); if (mode !== "done") setMode("done"); }
     // Update both/neither contexts from session
     if (session.bothContexts.length)    setBothContexts(session.bothContexts);
     if (session.neitherContexts.length) setNeitherContexts(session.neitherContexts);
@@ -548,35 +548,65 @@ function TetralemmaInner() {
           value={solution}
           onChange={e => setSolution(e.target.value)}
           placeholder="The new answer, the third way, the unexpected solution…"
-          rows={6}
+          rows={5}
           style={{ ...inputSt(), resize:"none", lineHeight:1.6, marginBottom:14 }}
         />
         <button disabled={!solution.trim()} onClick={async () => {
-          if (sessionId) await sessionPost("set-solution", { id: sessionId, solution: solution.trim() });
+          if (sessionId) {
+            const s = await sessionPost("set-solution", { id: sessionId, role: myRole, solution: solution.trim() });
+            if (s) setSession(s);
+            // Wait for partner if not done yet
+            if (s?.phase !== "done") { /* waiting screen handled by polling */ return; }
+          }
           setMode("done");
         }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:solution.trim() ? "pointer" : "not-allowed", border:"none", fontFamily:FONT, background:solution.trim() ? "#333" : "#e8e8e8", color:solution.trim() ? "#fff" : "#bbb" }}>
-          Complete →
+          {sessionId ? "Submit my answer →" : "Complete →"}
         </button>
+        {sessionId && solution.trim() && session && !session.solutionHost && !session.solutionGuest && (
+          <p style={{ fontSize:12, color:"#aaa", textAlign:"center", marginTop:8 }}>Waiting for your partner to write their answer…</p>
+        )}
       </>);
     }
   }
 
   // ── DONE ──
-  if (mode === "done") return wrap(<>
-    <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>TETRALEMMA COMPLETE</p>
-    <h2 style={{ fontSize:22, fontWeight:700, color:COLOR, margin:"0 0 6px" }}>{challenge}</h2>
-    <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:24 }}>
-      <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
-      <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
-    </div>
-    <div style={{ background:"#333", borderRadius:14, padding:"24px 22px", marginBottom:28 }}>
-      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 10px" }}>THE NEW ANSWER</p>
-      <p style={{ fontSize:16, color:"#fff", lineHeight:1.7, margin:0 }}>{solution}</p>
-    </div>
-    <button onClick={() => { setMode("start"); setIdeaA(""); setIdeaB(""); setPhase("flip"); setFlipContext(""); setBothContexts([]); setNeitherContexts([]); setSolution(""); setChallenge(""); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"1.5px solid #ddd", background:"#fff", color:"#555", fontFamily:FONT }}>
-      ↩ Start a new tetralemma
-    </button>
-  </>);
+  if (mode === "done") {
+    const isPairDone = session && (session.solutionHost || session.solutionGuest);
+    return wrap(<>
+      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>CREATIVE IDEA GENERATION COMPLETE</p>
+      <h2 style={{ fontSize:20, fontWeight:700, color:COLOR, margin:"0 0 6px" }}>{challenge || session?.challenge}</h2>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:24 }}>
+        <IdeaBadge label="A" idea={ideaA || session?.ideaA || ""} color="#e07a3a" />
+        <IdeaBadge label="B" idea={ideaB || session?.ideaB || ""} color="#7c6fcd" />
+      </div>
+
+      {isPairDone ? (
+        <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:28 }}>
+          {session?.solutionHost && (
+            <div style={{ background:"#333", borderRadius:14, padding:"20px 22px" }}>
+              <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 8px" }}>{session.hostName.toUpperCase()}'S ANSWER</p>
+              <p style={{ fontSize:15, color:"#fff", lineHeight:1.7, margin:0 }}>{session.solutionHost}</p>
+            </div>
+          )}
+          {session?.solutionGuest && (
+            <div style={{ background:"#2c2c2c", borderRadius:14, padding:"20px 22px" }}>
+              <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 8px" }}>{session.guestName.toUpperCase()}'S ANSWER</p>
+              <p style={{ fontSize:15, color:"#fff", lineHeight:1.7, margin:0 }}>{session.solutionGuest}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ background:"#333", borderRadius:14, padding:"24px 22px", marginBottom:28 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 10px" }}>THE NEW ANSWER</p>
+          <p style={{ fontSize:16, color:"#fff", lineHeight:1.7, margin:0 }}>{solution}</p>
+        </div>
+      )}
+
+      <button onClick={() => { setMode("start"); setIdeaA(""); setIdeaB(""); setPhase("flip"); setFlipContext(""); setBothContexts([]); setNeitherContexts([]); setSolution(""); setChallenge(""); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"1.5px solid #ddd", background:"#fff", color:"#555", fontFamily:FONT }}>
+        ↩ Start a new tetralemma
+      </button>
+    </>);
+  }
 
   return null;
 }

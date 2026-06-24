@@ -37,7 +37,9 @@ export interface TetralemmaSession {
   currentContext: string;
   bothContexts:    string[];
   neitherContexts: string[];
-  solution: string;
+  solution: string;      // solo
+  solutionHost:  string; // pair
+  solutionGuest: string; // pair
   readyHost:  boolean;
   readyGuest: boolean;
   bothReshuffleRole:    "host" | "guest";
@@ -52,7 +54,8 @@ export async function createTetralemma(id: string, hostName: string, challenge: 
     id, challenge, ideaA: "", ideaB: "", hostName, guestName: "",
     phase: "lobby", currentSide: "A", currentContext: "",
     bothContexts: [], neitherContexts: [], solution: "",
-    readyHost: false, readyGuest: false,
+    solutionHost: "", solutionGuest: "",
+  readyHost: false, readyGuest: false,
   bothReshuffleRole: "host" as "host"|"guest",
   neitherReshuffleRole: "host" as "host"|"guest",
   createdAt: Date.now(),
