@@ -78,8 +78,16 @@ const games = [
     available: true,
   },
   {
-    id: "fierce-conversation",
+    id: "tetralemma",
     number: "10",
+    title: "Tetralemma",
+    description: "Two ideas in tension? Work through all four logical positions — and discover the fifth.",
+    color: "#1abc9c",
+    available: true,
+  },
+  {
+    id: "fierce-conversation",
+    number: "11",
     title: "Fierce Conversation",
     description: "Prepare the conversation you've been putting off. 7 steps. 60 seconds.",
     color: "#8e44ad",

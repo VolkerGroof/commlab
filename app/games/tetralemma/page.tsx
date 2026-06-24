@@ -1,0 +1,512 @@
+"use client";
+
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import type { TetralemmaSession } from "@/lib/tetralemmaStore";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const COLOR  = "#1abc9c";
+const FONT   = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+const PHASE_CONFIG = {
+  flip:    { label: "Position 1 & 2",  title: "Only one is true",  color: "#e07a3a", sub: "Explore both sides — each flip shows a new context" },
+  both:    { label: "Position 3",       title: "Both are true",     color: "#1d9e75", sub: "When can both ideas work simultaneously?" },
+  neither: { label: "Position 4",       title: "Neither is true",   color: "#7c6fcd", sub: "When does a completely different answer emerge?" },
+  tabula:  { label: "Position 5",       title: "Tabula Rasa",       color: "#333",    sub: "Leave everything behind — what is the new answer?" },
+} as const;
+
+function inputSt(): React.CSSProperties {
+  return { width:"100%", fontSize:14, padding:"12px 16px", border:"1.5px solid #e0e0e0", borderRadius:12, outline:"none", boxSizing:"border-box", color:"#111", fontFamily:FONT, background:"#fff" };
+}
+
+function wrap(content: React.ReactNode) {
+  return (
+    <div style={{ minHeight:"100vh", background:"#f7f7f5", fontFamily:FONT }}>
+      <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:10, background:"#fff", borderBottom:"1px solid #eee", padding:"0 28px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <Link href="/" style={{ fontSize:13, color:"#999", textDecoration:"none" }}>← CommLab</Link>
+        <span style={{ fontSize:14, fontWeight:600, color:"#111" }}>Tetralemma</span>
+        <span />
+      </div>
+      <div style={{ paddingTop:52 }}>
+        <div style={{ maxWidth:600, margin:"0 auto", padding:"48px 24px 80px" }}>
+          {content}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Idea chips ────────────────────────────────────────────────────────────────
+
+function IdeaBadge({ label, idea, color }: { label: string; idea: string; color: string }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", background:`${color}10`, border:`1.5px solid ${color}30`, borderRadius:20 }}>
+      <span style={{ fontSize:11, fontWeight:700, color, letterSpacing:"0.06em" }}>{label}</span>
+      <span style={{ fontSize:13, color:"#555", fontWeight:500 }}>{idea}</span>
+    </div>
+  );
+}
+
+// ── Context card ──────────────────────────────────────────────────────────────
+
+function ContextCard({ text, color, label }: { text: string; color: string; label?: string }) {
+  return (
+    <div style={{ background:`${color}08`, border:`2px solid ${color}30`, borderRadius:14, padding:"18px 20px" }}>
+      {label && <p style={{ fontSize:10, fontWeight:700, color, letterSpacing:"0.07em", margin:"0 0 8px" }}>{label}</p>}
+      <p style={{ fontSize:14, color:"#444", lineHeight:1.7, margin:0 }}>{text}</p>
+    </div>
+  );
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+
+function Spinner() {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"32px 0" }}>
+      <div style={{ width:32, height:32, border:`3px solid ${COLOR}30`, borderTopColor:COLOR, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+
+async function generateContext(challenge: string, ideaA: string, ideaB: string, position: string, side?: string): Promise<string> {
+  const res = await fetch("/api/games/tetralemma/context", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ challenge, ideaA, ideaB, position, side }),
+  });
+  const { context } = await res.json();
+  return context ?? "";
+}
+
+async function sessionPost(action: string, data: Record<string, unknown>): Promise<TetralemmaSession | null> {
+  const res = await fetch("/api/games/tetralemma/session", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ action, ...data }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function sessionGet(id: string): Promise<TetralemmaSession | null> {
+  const res = await fetch(`/api/games/tetralemma/session?id=${id}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+type Mode = "start" | "solo" | "pair-create" | "pair-join" | "pair-lobby" | "pair-ideas" | "pair-waiting-idea" | "done";
+type TetPhase = "flip" | "both" | "neither" | "tabula";
+
+function TetralemmaInner() {
+  const searchParams = useSearchParams();
+  const urlSid = searchParams.get("s");
+  const urlRole = searchParams.get("r"); // "guest"
+
+  // ── Global state ──
+  const [mode, setMode]           = useState<Mode>(urlSid ? "pair-join" : "start");
+  const [challenge, setChallenge] = useState("");
+  const [isPair, setIsPair]       = useState(false);
+  const [myName, setMyName]       = useState("");
+  const [nameInput, setNameInput] = useState("");
+
+  // ── Solo/shared tetralemma state ──
+  const [ideaA, setIdeaA]         = useState("");
+  const [ideaB, setIdeaB]         = useState("");
+  const [ideaAInput, setIdeaAInput] = useState("");
+  const [ideaBInput, setIdeaBInput] = useState("");
+  const [phase, setPhase]         = useState<TetPhase>("flip");
+  const [side, setSide]           = useState<"A"|"B">("A");
+  const [flipContext, setFlipContext] = useState("");
+  const [bothContexts, setBothContexts] = useState<string[]>([]);
+  const [neitherContexts, setNeitherContexts] = useState<string[]>([]);
+  const [solution, setSolution]   = useState("");
+  const [loading, setLoading]     = useState(false);
+
+  // ── Pair state ──
+  const [sessionId, setSessionId] = useState(urlSid ?? "");
+  const [session, setSession]     = useState<TetralemmaSession | null>(null);
+  const [joinError, setJoinError] = useState("");
+  const [myIdea, setMyIdea]       = useState("");
+
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/games/tetralemma?s=${sessionId}&r=guest` : "";
+  const isHost   = !urlRole;
+  const isGuest  = urlRole === "guest";
+
+  // ── Pair polling ──
+  const doPoll = useCallback(async () => {
+    if (!sessionId) return;
+    const s = await sessionGet(sessionId);
+    if (s) setSession(s);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || mode === "start" || mode === "pair-join" || mode === "done") return;
+    const t = setInterval(doPoll, 3000);
+    return () => clearInterval(t);
+  }, [sessionId, mode, doPoll]);
+
+  // Sync pair session phase → local state
+  useEffect(() => {
+    if (!session) return;
+    if (session.phase === "flip") {
+      if (mode !== "solo") setPhase("flip");
+      if (session.currentContext) setFlipContext(session.currentContext);
+      if (session.currentSide)    setSide(session.currentSide);
+      setIdeaA(session.ideaA); setIdeaB(session.ideaB);
+      if (session.ideaA && session.ideaB) {
+        if (mode === "pair-waiting-idea") setMode("pair-ideas");
+        // If already in tetralemma
+      }
+    }
+    if (session.phase === "both")    { setPhase("both");    setBothContexts(session.bothContexts); }
+    if (session.phase === "neither") { setPhase("neither"); setNeitherContexts(session.neitherContexts); }
+    if (session.phase === "tabula")  { setPhase("tabula"); }
+    if (session.phase === "done")    { setSolution(session.solution); setMode("done"); }
+    // Update both/neither contexts from session
+    if (session.bothContexts.length)    setBothContexts(session.bothContexts);
+    if (session.neitherContexts.length) setNeitherContexts(session.neitherContexts);
+    if (session.currentContext && session.phase === "flip") setFlipContext(session.currentContext);
+    if (session.currentSide    && session.phase === "flip") setSide(session.currentSide);
+  }, [session, mode]);
+
+  // ── START screen ──
+  if (mode === "start") return wrap(<>
+    <h1 style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.5px", color:"#111", margin:"0 0 8px" }}>Tetralemma</h1>
+    <p style={{ fontSize:15, color:"#888", margin:"0 0 28px", lineHeight:1.6 }}>
+      Two ideas in tension? Work through all four logical positions — and discover the fifth.
+    </p>
+    <div style={{ background:`${COLOR}10`, border:`1.5px solid ${COLOR}30`, borderRadius:14, padding:"16px 20px", marginBottom:28 }}>
+      {(["flip","both","neither","tabula"] as const).map((p, i) => {
+        const c = PHASE_CONFIG[p];
+        return <div key={p} style={{ display:"flex", gap:12, marginBottom: i < 3 ? 10 : 0 }}>
+          <span style={{ fontSize:11, fontWeight:700, color:c.color, minWidth:18 }}>{i+1}</span>
+          <span style={{ fontSize:13, color:"#666" }}><strong style={{ color:c.color }}>{c.title}</strong> — {c.sub}</span>
+        </div>;
+      })}
+    </div>
+    <label style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", display:"block", marginBottom:8 }}>YOUR CHALLENGE</label>
+    <input value={challenge} onChange={e => setChallenge(e.target.value)} placeholder="What decision or tension are you exploring?" autoFocus style={{ ...inputSt(), marginBottom:16 }} />
+    <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+      <button onClick={() => setIsPair(false)} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${!isPair ? COLOR : "#e0e0e0"}`, background:!isPair ? `${COLOR}10` : "#fff", color:!isPair ? COLOR : "#888", fontFamily:FONT }}>
+        🔍 Solo
+      </button>
+      <button onClick={() => setIsPair(true)} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${isPair ? COLOR : "#e0e0e0"}`, background:isPair ? `${COLOR}10` : "#fff", color:isPair ? COLOR : "#888", fontFamily:FONT }}>
+        👥 With a partner
+      </button>
+    </div>
+    {isPair && <>
+      <label style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", display:"block", marginBottom:8 }}>YOUR NAME</label>
+      <input value={myName} onChange={e => setMyName(e.target.value)} placeholder="Your name…" style={{ ...inputSt(), marginBottom:16 }} />
+    </>}
+    <button disabled={!challenge.trim() || (isPair && !myName.trim())} onClick={async () => {
+      if (!isPair) { setMode("solo"); setPhase("flip"); setFlipContext(""); return; }
+      const s = await sessionPost("create", { hostName: myName.trim(), challenge: challenge.trim() });
+      if (s) { setSessionId(s.id); setSession(s); setMode("pair-create"); }
+    }} style={{ width:"100%", padding:"14px", borderRadius:12, fontSize:15, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:challenge.trim() ? COLOR : "#e8e8e8", color:challenge.trim() ? "#fff" : "#bbb" }}>
+      {isPair ? "Create session →" : "Start tetralemma →"}
+    </button>
+  </>);
+
+  // ── PAIR CREATE (host waits for guest) ──
+  if (mode === "pair-create") return wrap(<>
+    <h2 style={{ fontSize:20, fontWeight:700, color:"#111", margin:"0 0 8px" }}>Waiting for your partner</h2>
+    <p style={{ fontSize:14, color:"#888", margin:"0 0 20px" }}>Share this link — once they join, you'll each enter your idea.</p>
+    <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+      <input readOnly value={shareUrl} style={{ ...inputSt(), fontSize:12, flex:1 }} />
+      <CopyBtn url={shareUrl} />
+    </div>
+    {session?.guestName && (
+      <div style={{ background:`${COLOR}10`, border:`1.5px solid ${COLOR}30`, borderRadius:12, padding:"14px 18px", marginBottom:16 }}>
+        <p style={{ fontSize:14, color:COLOR, fontWeight:600, margin:0 }}>✓ {session.guestName} has joined!</p>
+      </div>
+    )}
+    <button disabled={!session?.guestName} onClick={() => setMode("pair-ideas")} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:session?.guestName ? "pointer" : "not-allowed", border:"none", fontFamily:FONT, background:session?.guestName ? COLOR : "#e8e8e8", color:session?.guestName ? "#fff" : "#bbb" }}>
+      {session?.guestName ? "Both ready — enter your ideas →" : "Waiting for partner…"}
+    </button>
+  </>);
+
+  // ── PAIR JOIN ──
+  if (mode === "pair-join") return wrap(<>
+    <h2 style={{ fontSize:20, fontWeight:700, color:"#111", margin:"0 0 8px" }}>Join Tetralemma</h2>
+    <p style={{ fontSize:14, color:"#888", margin:"0 0 24px" }}>Your partner is waiting. Enter your name to join.</p>
+    <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Your name…" autoFocus style={{ ...inputSt(), marginBottom:12 }} />
+    {joinError && <p style={{ fontSize:13, color:"#d4537e", margin:"0 0 12px", padding:"10px 14px", background:"#d4537e10", borderRadius:8 }}>{joinError}</p>}
+    <button disabled={!nameInput.trim()} onClick={async () => {
+      setJoinError("");
+      const s = await sessionPost("join", { id: sessionId, guestName: nameInput.trim() });
+      if (!s) { setJoinError("Session not found."); return; }
+      setMyName(nameInput.trim()); setChallenge(s.challenge);
+      setSession(s); setMode("pair-ideas");
+    }} style={{ width:"100%", padding:"14px", borderRadius:12, fontSize:15, fontWeight:600, cursor:nameInput.trim() ? "pointer" : "not-allowed", border:"none", fontFamily:FONT, background:nameInput.trim() ? COLOR : "#e8e8e8", color:nameInput.trim() ? "#fff" : "#bbb" }}>
+      Join →
+    </button>
+  </>);
+
+  // ── PAIR IDEAS entry ──
+  if (mode === "pair-ideas" && session) {
+    const myRole = isHost ? "host" : "guest";
+    const myIdeaSubmitted = isHost ? !!session.ideaA : !!session.ideaB;
+    const bothSubmitted = !!session.ideaA && !!session.ideaB;
+
+    if (bothSubmitted) {
+      // Auto-advance to tetralemma
+      setIdeaA(session.ideaA); setIdeaB(session.ideaB);
+      setPhase("flip");
+      if (!flipContext) {
+        setLoading(true);
+        generateContext(session.challenge, session.ideaA, session.ideaB, "flip", "A").then(ctx => {
+          setFlipContext(ctx); setSide("A"); setLoading(false);
+          sessionPost("flip", { id: sessionId, side: "A", context: ctx });
+        });
+      }
+      setMode("solo"); // Use solo flow for shared navigation
+      return null;
+    }
+
+    return wrap(<>
+      <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+      <h2 style={{ fontSize:20, fontWeight:700, color:"#111", margin:"0 0 20px" }}>Enter your idea</h2>
+      {myIdeaSubmitted ? (
+        <div style={{ textAlign:"center", padding:"32px 0" }}>
+          <p style={{ fontSize:15, color:"#888" }}>Your idea is in! Waiting for {isHost ? session.guestName : session.hostName}…</p>
+        </div>
+      ) : (
+        <>
+          <p style={{ fontSize:13, color:"#888", margin:"0 0 14px" }}>
+            {isHost ? `You are ${session.hostName} — enter Idea A` : `You are ${session.guestName} — enter Idea B`}
+          </p>
+          <input value={myIdea} onChange={e => setMyIdea(e.target.value)} placeholder="Your idea…" autoFocus style={{ ...inputSt(), marginBottom:14 }} />
+          <button disabled={!myIdea.trim()} onClick={async () => {
+            const s = await sessionPost("set-idea", { id: sessionId, role: myRole, idea: myIdea.trim() });
+            if (s) setSession(s);
+          }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:myIdea.trim() ? "pointer" : "not-allowed", border:"none", fontFamily:FONT, background:myIdea.trim() ? COLOR : "#e8e8e8", color:myIdea.trim() ? "#fff" : "#bbb" }}>
+            Submit my idea →
+          </button>
+        </>
+      )}
+    </>);
+  }
+
+  // ── SOLO IDEA ENTRY ──
+  if (mode === "solo" && !ideaA) return wrap(<>
+    <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+    <h2 style={{ fontSize:20, fontWeight:700, color:"#111", margin:"0 0 20px" }}>Enter the two ideas in tension</h2>
+    <label style={{ fontSize:11, fontWeight:700, color:"#e07a3a", letterSpacing:"0.07em", display:"block", marginBottom:8 }}>IDEA A</label>
+    <input value={ideaAInput} onChange={e => setIdeaAInput(e.target.value)} placeholder="First idea or position…" style={{ ...inputSt(), marginBottom:16 }} />
+    <label style={{ fontSize:11, fontWeight:700, color:"#7c6fcd", letterSpacing:"0.07em", display:"block", marginBottom:8 }}>IDEA B</label>
+    <input value={ideaBInput} onChange={e => setIdeaBInput(e.target.value)} placeholder="Second idea or position…" style={{ ...inputSt(), marginBottom:20 }} />
+    <button disabled={!ideaAInput.trim() || !ideaBInput.trim()} onClick={async () => {
+      setIdeaA(ideaAInput.trim()); setIdeaB(ideaBInput.trim());
+      setLoading(true);
+      const ctx = await generateContext(challenge, ideaAInput.trim(), ideaBInput.trim(), "flip", "A");
+      setFlipContext(ctx); setSide("A"); setLoading(false);
+    }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+      Start the tetralemma →
+    </button>
+  </>);
+
+  // ── TETRALEMMA PHASES ──
+  if ((mode === "solo" || mode === "pair-ideas") && ideaA) {
+    const cfg = PHASE_CONFIG[phase];
+
+    // ── FLIP ──
+    if (phase === "flip") return wrap(<>
+      <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
+        <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
+        <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
+      </div>
+      <div style={{ background:`${cfg.color}10`, borderRadius:12, padding:"10px 16px", marginBottom:20, display:"flex", gap:12, alignItems:"center" }}>
+        <span style={{ fontSize:11, fontWeight:700, color:cfg.color, letterSpacing:"0.07em" }}>{cfg.label}</span>
+        <span style={{ fontSize:13, color:"#777" }}>{cfg.sub}</span>
+      </div>
+
+      {loading ? <Spinner /> : flipContext ? (
+        <>
+          <div style={{ marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:"#fff", background:side === "A" ? "#e07a3a" : "#7c6fcd", borderRadius:8, padding:"3px 10px" }}>
+              IDEA {side} IS TRUE
+            </span>
+          </div>
+          <ContextCard text={flipContext} color={side === "A" ? "#e07a3a" : "#7c6fcd"} />
+        </>
+      ) : null}
+
+      <div style={{ display:"flex", gap:10, marginTop:16 }}>
+        <button disabled={loading} onClick={async () => {
+          setLoading(true);
+          const newSide: "A"|"B" = side === "A" ? "B" : "A";
+          const ctx = await generateContext(challenge, ideaA, ideaB, "flip", newSide);
+          setSide(newSide); setFlipContext(ctx); setLoading(false);
+          if (sessionId) sessionPost("flip", { id: sessionId, side: newSide, context: ctx });
+        }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${loading ? "#e8e8e8" : cfg.color}`, background:`${cfg.color}10`, color:loading ? "#bbb" : cfg.color, fontFamily:FONT }}>
+          🔄 Flip — try the other side
+        </button>
+        <button onClick={async () => {
+          setPhase("both"); setLoading(true);
+          const ctx = await generateContext(challenge, ideaA, ideaB, "both");
+          setBothContexts([ctx]); setLoading(false);
+          if (sessionId) {
+            sessionPost("advance", { id: sessionId, phase: "both" });
+            sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
+          }
+        }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+          Continue →
+        </button>
+      </div>
+    </>);
+
+    // ── BOTH ──
+    if (phase === "both") {
+      const cfg3 = PHASE_CONFIG.both;
+      return wrap(<>
+        <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
+          <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
+          <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
+        </div>
+        <div style={{ background:`${cfg3.color}10`, borderRadius:12, padding:"10px 16px", marginBottom:20, display:"flex", gap:12, alignItems:"center" }}>
+          <span style={{ fontSize:11, fontWeight:700, color:cfg3.color, letterSpacing:"0.07em" }}>{cfg3.label}</span>
+          <span style={{ fontSize:13, color:"#777" }}>{cfg3.sub}</span>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+          {bothContexts.map((c, i) => <ContextCard key={i} text={c} color={cfg3.color} label={`Context ${i+1}`} />)}
+          {loading && <Spinner />}
+        </div>
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button disabled={loading || bothContexts.length >= 3} onClick={async () => {
+            setLoading(true);
+            const ctx = await generateContext(challenge, ideaA, ideaB, "both");
+            setBothContexts(prev => [...prev, ctx]); setLoading(false);
+            if (sessionId) sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: bothContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${cfg3.color}40`, background:`${cfg3.color}08`, color: bothContexts.length >= 3 ? "#bbb" : cfg3.color, fontFamily:FONT }}>
+            {bothContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
+          </button>
+          <button onClick={async () => {
+            setPhase("neither"); setLoading(true);
+            const ctx = await generateContext(challenge, ideaA, ideaB, "neither");
+            setNeitherContexts([ctx]); setLoading(false);
+            if (sessionId) {
+              sessionPost("advance", { id: sessionId, phase: "neither" });
+              sessionPost("add-context", { id: sessionId, position: "neither", context: ctx });
+            }
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+            Continue →
+          </button>
+        </div>
+      </>);
+    }
+
+    // ── NEITHER ──
+    if (phase === "neither") {
+      const cfg4 = PHASE_CONFIG.neither;
+      return wrap(<>
+        <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
+          <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
+          <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
+        </div>
+        <div style={{ background:`${cfg4.color}10`, borderRadius:12, padding:"10px 16px", marginBottom:20, display:"flex", gap:12, alignItems:"center" }}>
+          <span style={{ fontSize:11, fontWeight:700, color:cfg4.color, letterSpacing:"0.07em" }}>{cfg4.label}</span>
+          <span style={{ fontSize:13, color:"#777" }}>{cfg4.sub}</span>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+          {neitherContexts.map((c, i) => <ContextCard key={i} text={c} color={cfg4.color} label={`Context ${i+1}`} />)}
+          {loading && <Spinner />}
+        </div>
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button disabled={loading || neitherContexts.length >= 3} onClick={async () => {
+            setLoading(true);
+            const ctx = await generateContext(challenge, ideaA, ideaB, "neither");
+            setNeitherContexts(prev => [...prev, ctx]); setLoading(false);
+            if (sessionId) sessionPost("add-context", { id: sessionId, position: "neither", context: ctx });
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: neitherContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${cfg4.color}40`, background:`${cfg4.color}08`, color: neitherContexts.length >= 3 ? "#bbb" : cfg4.color, fontFamily:FONT }}>
+            {neitherContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
+          </button>
+          <button onClick={() => {
+            setPhase("tabula");
+            if (sessionId) sessionPost("advance", { id: sessionId, phase: "tabula" });
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+            Continue →
+          </button>
+        </div>
+      </>);
+    }
+
+    // ── TABULA RASA ──
+    if (phase === "tabula") {
+      const cfg5 = PHASE_CONFIG.tabula;
+      return wrap(<>
+        <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+        <div style={{ background:"#f0f0f0", borderRadius:12, padding:"10px 16px", marginBottom:24, display:"flex", gap:12, alignItems:"center" }}>
+          <span style={{ fontSize:11, fontWeight:700, color:"#555", letterSpacing:"0.07em" }}>{cfg5.label}</span>
+          <span style={{ fontSize:13, color:"#777" }}>{cfg5.sub}</span>
+        </div>
+        <p style={{ fontSize:14, color:"#888", margin:"0 0 16px", lineHeight:1.6 }}>
+          Everything you explored — both sides, both together, neither — all of it has created space. Now write what wants to emerge.
+        </p>
+        <textarea
+          value={solution}
+          onChange={e => setSolution(e.target.value)}
+          placeholder="The new answer, the third way, the unexpected solution…"
+          rows={6}
+          style={{ ...inputSt(), resize:"none", lineHeight:1.6, marginBottom:14 }}
+        />
+        <button disabled={!solution.trim()} onClick={async () => {
+          if (sessionId) await sessionPost("set-solution", { id: sessionId, solution: solution.trim() });
+          setMode("done");
+        }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:solution.trim() ? "pointer" : "not-allowed", border:"none", fontFamily:FONT, background:solution.trim() ? "#333" : "#e8e8e8", color:solution.trim() ? "#fff" : "#bbb" }}>
+          Complete →
+        </button>
+      </>);
+    }
+  }
+
+  // ── DONE ──
+  if (mode === "done") return wrap(<>
+    <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>TETRALEMMA COMPLETE</p>
+    <h2 style={{ fontSize:22, fontWeight:700, color:COLOR, margin:"0 0 6px" }}>{challenge}</h2>
+    <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:24 }}>
+      <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
+      <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
+    </div>
+    <div style={{ background:"#333", borderRadius:14, padding:"24px 22px", marginBottom:28 }}>
+      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 10px" }}>THE NEW ANSWER</p>
+      <p style={{ fontSize:16, color:"#fff", lineHeight:1.7, margin:0 }}>{solution}</p>
+    </div>
+    <button onClick={() => { setMode("start"); setIdeaA(""); setIdeaB(""); setPhase("flip"); setFlipContext(""); setBothContexts([]); setNeitherContexts([]); setSolution(""); setChallenge(""); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"1.5px solid #ddd", background:"#fff", color:"#555", fontFamily:FONT }}>
+      ↩ Start a new tetralemma
+    </button>
+  </>);
+
+  return null;
+}
+
+function CopyBtn({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <>
+      <style>{`@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
+      <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ padding:"12px 16px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${copied ? "#1d9e75" : `${COLOR}50`}`, background:copied ? "#1d9e7515" : `${COLOR}08`, color:copied ? "#1d9e75" : COLOR, fontFamily:FONT, whiteSpace:"nowrap", animation:copied ? "pop 0.25s ease" : "none" }}>
+        {copied ? "Copied ✓" : "Copy →"}
+      </button>
+    </>
+  );
+}
+
+export default function TetralemmaPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight:"100vh", background:"#f7f7f5" }} />}>
+      <TetralemmaInner />
+    </Suspense>
+  );
+}
