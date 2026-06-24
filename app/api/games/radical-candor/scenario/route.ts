@@ -3,37 +3,50 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 const RELATIONSHIPS = [
-  { you: "Team Lead", other: "direct report" },
-  { you: "Colleague", other: "peer" },
-  { you: "Manager", other: "team member" },
-  { you: "Customer", other: "service rep" },
-  { you: "Mentor", other: "mentee" },
-  { you: "Project Lead", other: "contributor" },
-  { you: "Senior Developer", other: "junior developer" },
-  { you: "Department Head", other: "manager" },
+  { you: "Team Lead", other: "Direct Report" },
+  { you: "Colleague", other: "Peer" },
+  { you: "Manager", other: "Team Member" },
+  { you: "Senior Developer", other: "Junior Developer" },
+  { you: "Project Lead", other: "Contributor" },
+  { you: "Department Head", other: "Manager" },
+  { you: "Mentor", other: "Mentee" },
+  { you: "Customer", other: "Account Manager" },
 ];
 
+const NAMES = ["Alex", "Sam", "Jordan", "Morgan", "Taylor", "Jamie", "Riley", "Casey", "Dana", "Quinn", "Avery", "Drew"];
+
 export async function GET() {
-  const rel = RELATIONSHIPS[Math.floor(Math.random() * RELATIONSHIPS.length)];
+  const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
+  const rels = shuffle(RELATIONSHIPS).slice(0, 5);
+  const names = shuffle(NAMES);
 
   const msg = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 300,
+    max_tokens: 800,
     messages: [{
       role: "user",
-      content: `Generate a realistic workplace feedback scenario.
-You are: ${rel.you}
-The other person is your: ${rel.other}
+      content: `Generate 5 distinct, realistic workplace feedback scenarios for a feedback training exercise.
 
-Generate a specific observation (what they did) that calls for feedback — could be positive OR critical.
-Make it concrete and believable. 2-4 sentences max.
+For each scenario provide:
+- A short title (max 6 words)
+- A 1-sentence teaser (for the selection list)
+- The full observation: what the OTHER PERSON did — always written in third person using their name. Max 3 sentences. Be specific and concrete.
+- Could be positive OR critical behavior.
 
-Return ONLY valid JSON:
-{
-  "you": "${rel.you}",
-  "other": "${rel.other}",
-  "observation": "Specific description of what happened or what they did..."
-}`,
+Relationships to use (in order):
+${rels.map((r, i) => `${i+1}. You=${r.you}, Other=${r.other} (name: ${names[i]})`).join("\n")}
+
+Return ONLY valid JSON array of 5 objects:
+[
+  {
+    "you": "...",
+    "other": "...",
+    "otherName": "...",
+    "title": "Short title...",
+    "teaser": "One-sentence preview...",
+    "observation": "Third-person observation about what [name] did..."
+  }
+]`,
     }],
   });
 

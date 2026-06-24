@@ -5,7 +5,10 @@ import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface Scenario { you: string; other: string; observation: string; }
+interface Scenario {
+  you: string; other: string; otherName: string;
+  title: string; teaser: string; observation: string;
+}
 
 interface Evaluation {
   careScore: number; challengeScore: number;
@@ -13,7 +16,7 @@ interface Evaluation {
   howTheyFeel: string; coaching: string[]; summary: string;
 }
 
-type AppStep = "intro" | "loading-scenario" | "input" | "evaluating" | "result";
+type AppStep = "intro" | "loading-scenarios" | "pick" | "input" | "evaluating" | "result";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -145,21 +148,26 @@ function useVoice(appendText: (t: string) => void) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function RadicalCandorPage() {
-  const [step, setStep]         = useState<AppStep>("intro");
-  const [scenario, setScenario] = useState<Scenario|null>(null);
-  const [feedback, setFeedback] = useState("");
-  const [evaluation, setEval]   = useState<Evaluation|null>(null);
-  const [improved, setImproved] = useState("");
+  const [step, setStep]           = useState<AppStep>("intro");
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenario, setScenario]   = useState<Scenario|null>(null);
+  const [feedback, setFeedback]   = useState("");
+  const [evaluation, setEval]     = useState<Evaluation|null>(null);
+  const [improved, setImproved]   = useState("");
   const [loadingImprove, setLoadingImprove] = useState(false);
 
   const { listening, transcribing, supported, voiceError, start, stop } = useVoice(t => setFeedback(p => p ? p+" "+t : t));
 
-  async function loadScenario() {
-    setStep("loading-scenario");
-    setFeedback(""); setEval(null); setImproved("");
+  async function loadScenarios() {
+    setStep("loading-scenarios");
     const res = await fetch("/api/games/radical-candor/scenario");
-    const s = await res.json();
-    setScenario(s); setStep("input");
+    const list = await res.json();
+    setScenarios(list); setStep("pick");
+  }
+
+  function pickScenario(s: Scenario) {
+    setScenario(s); setFeedback(""); setEval(null); setImproved("");
+    setStep("input");
   }
 
   async function evaluate() {
@@ -207,7 +215,7 @@ export default function RadicalCandorPage() {
         </div>
       ))}
     </div>
-    <button onClick={loadScenario} style={{
+    <button onClick={loadScenarios} style={{
       width:"100%", padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600,
       cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff",
     }}>
@@ -215,8 +223,8 @@ export default function RadicalCandorPage() {
     </button>
   </>);
 
-  // ── Loading ──
-  if (step === "loading-scenario") return wrap(
+  // ── Loading scenarios ──
+  if (step === "loading-scenarios") return wrap(
     <div style={{ textAlign:"center", padding:"60px 0" }}>
       <div style={{ width:48, height:48, border:`3px solid ${COLOR}30`, borderTopColor:COLOR, borderRadius:"50%", animation:"spin 0.9s linear infinite", margin:"0 auto 20px" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -224,13 +232,32 @@ export default function RadicalCandorPage() {
     </div>
   );
 
+  // ── Pick scenario ──
+  if (step === "pick") return wrap(<>
+    <h2 style={{ fontSize:20, fontWeight:700, color:"#111", margin:"0 0 6px" }}>Choose a situation</h2>
+    <p style={{ fontSize:14, color:"#aaa", margin:"0 0 20px" }}>Pick one to practice your feedback on:</p>
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {scenarios.map((s, i) => (
+        <button key={i} onClick={() => pickScenario(s)} style={{
+          padding:"14px 18px", borderRadius:12, fontSize:14, cursor:"pointer",
+          border:`1.5px solid ${COLOR}30`, background:"#fff", fontFamily:FONT,
+          textAlign:"left", display:"flex", flexDirection:"column", gap:4,
+          transition:"all 0.15s",
+        }}>
+          <span style={{ fontWeight:700, color:"#111" }}>{s.title}</span>
+          <span style={{ fontSize:12, color:"#888" }}>{s.you} → {s.other} ({s.otherName}) · {s.teaser}</span>
+        </button>
+      ))}
+    </div>
+  </>);
+
   // ── Input ──
   if (step === "input" && scenario) return wrap(<>
     <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 6px" }}>YOUR SCENARIO</p>
     <div style={{ background:"#fff", borderRadius:14, border:`1.5px solid ${COLOR}30`, padding:"18px 20px", marginBottom:24 }}>
       <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
         <span style={{ fontSize:12, fontWeight:700, color:"#fff", background:COLOR, borderRadius:8, padding:"3px 10px" }}>You: {scenario.you}</span>
-        <span style={{ fontSize:12, fontWeight:700, color:COLOR, background:`${COLOR}15`, border:`1px solid ${COLOR}30`, borderRadius:8, padding:"3px 10px" }}>Talking to: {scenario.other}</span>
+        <span style={{ fontSize:12, fontWeight:700, color:COLOR, background:`${COLOR}15`, border:`1px solid ${COLOR}30`, borderRadius:8, padding:"3px 10px" }}>Talking to: {scenario.other} ({scenario.otherName})</span>
       </div>
       <p style={{ fontSize:14, color:"#555", lineHeight:1.7, margin:0 }}>{scenario.observation}</p>
     </div>
@@ -347,8 +374,8 @@ export default function RadicalCandorPage() {
         <button onClick={() => { setFeedback(""); setEval(null); setImproved(""); setStep("input"); }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", border:"1.5px solid #ddd", background:"#fff", color:"#555", fontFamily:FONT }}>
           ↩ Same scenario
         </button>
-        <button onClick={loadScenario} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
-          New scenario →
+        <button onClick={loadScenarios} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+          New scenarios →
         </button>
       </div>
     </>);
