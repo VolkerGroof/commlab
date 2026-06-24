@@ -86,8 +86,16 @@ const games = [
     available: true,
   },
   {
-    id: "radical-candor",
+    id: "culture",
     number: "11",
+    title: "Everyone Culture",
+    description: "Map your team's culture across 8 dimensions — surface hidden differences and turn them into concrete agreements.",
+    color: "#5c6bc0",
+    available: true,
+  },
+  {
+    id: "radical-candor",
+    number: "12",
     title: "Feedback Training",
     description: "Practice giving feedback that's both caring and direct — get scored on the Radical Candor matrix.",
     color: "#e91e63",
