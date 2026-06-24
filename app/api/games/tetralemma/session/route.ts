@@ -67,6 +67,14 @@ export async function POST(req: NextRequest) {
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
+  if (action === "flip-reshuffle-role") {
+    const s = await mutateTetralemma(body.id, sess => {
+      const field = body.position === "both" ? "bothReshuffleRole" : "neitherReshuffleRole";
+      sess[field] = sess[field] === "host" ? "guest" : "host";
+    });
+    return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+
   if (action === "add-context") {
     const s = await mutateTetralemma(body.id, sess => {
       const arr = body.position === "both" ? sess.bothContexts : sess.neitherContexts;

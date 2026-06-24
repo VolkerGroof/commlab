@@ -150,9 +150,15 @@ function TetralemmaInner() {
   // Sync pair session phase → local state
   useEffect(() => {
     if (!session) return;
-    // Auto-advance when session phase changes due to both-ready
-    if (session.phase === "both"    && phase === "flip")    { setPhase("both");    setLoading(true); generateContext(challenge||session.challenge, session.ideaA, session.ideaB, "both").then(ctx => { setBothContexts([ctx]); setLoading(false); sessionPost("add-context", { id: sessionId, position: "both", context: ctx }); }); }
-    if (session.phase === "neither" && phase === "both")    { setPhase("neither"); setLoading(true); generateContext(challenge||session.challenge, session.ideaA, session.ideaB, "neither").then(ctx => { setNeitherContexts([ctx]); setLoading(false); sessionPost("add-context", { id: sessionId, position: "neither", context: ctx }); }); }
+    // Auto-advance when session phase changes — only HOST generates first context
+    if (session.phase === "both"    && phase === "flip") {
+      setPhase("both");
+      if (isHost) { setLoading(true); generateContext(session.challenge, session.ideaA, session.ideaB, "both", undefined, 1).then(ctx => { setBothContexts([ctx]); setLoading(false); sessionPost("add-context", { id: sessionId, position: "both", context: ctx }); }); }
+    }
+    if (session.phase === "neither" && phase === "both") {
+      setPhase("neither");
+      if (isHost) { setLoading(true); generateContext(session.challenge, session.ideaA, session.ideaB, "neither", undefined, 1).then(ctx => { setNeitherContexts([ctx]); setLoading(false); sessionPost("add-context", { id: sessionId, position: "neither", context: ctx }); }); }
+    }
     if (session.phase === "tabula"  && phase === "neither") { setPhase("tabula"); }
 
     if (session.phase === "flip") {
@@ -456,15 +462,26 @@ function TetralemmaInner() {
         </div>
 
         <div style={{ display:"flex", gap:10 }}>
-          <button disabled={loading || bothContexts.length >= 3} onClick={async () => {
-            setLoading(true);
-            const nextIdx = bothContexts.length + 1;
-            const ctx = await generateContext(challenge, ideaA, ideaB, "both", undefined, nextIdx);
-            setBothContexts(prev => [...prev, ctx]); setLoading(false);
-            if (sessionId) sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: bothContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: bothContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
-            {bothContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
-          </button>
+          {(() => {
+            const myTurn = !sessionId || (session?.bothReshuffleRole === myRole);
+            const partnerN = sessionId ? (isHost ? session?.guestName : session?.hostName) : "";
+            const atMax = bothContexts.length >= 3;
+            return myTurn ? (
+              <button disabled={loading || atMax} onClick={async () => {
+                setLoading(true);
+                const nextIdx = bothContexts.length + 1;
+                const ctx = await generateContext(challenge, ideaA, ideaB, "both", undefined, nextIdx);
+                setBothContexts(prev => [...prev, ctx]); setLoading(false);
+                if (sessionId) { sessionPost("add-context", { id: sessionId, position: "both", context: ctx }); sessionPost("flip-reshuffle-role", { id: sessionId, position: "both" }); }
+              }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: atMax || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: atMax ? "#bbb" : c, fontFamily:FONT }}>
+                {atMax ? "Max 3 reached" : "✦ Reshuffle — add another"}
+              </button>
+            ) : (
+              <div style={{ flex:1, padding:"12px", borderRadius:12, fontSize:13, color:"#aaa", border:"1.5px solid #eee", background:"#fafafa", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                Waiting for {partnerN} to reshuffle…
+              </div>
+            );
+          })()}
           <ReadyGate nextPhase="neither" onSoloContinue={async () => {
             setPhase("neither"); setLoading(true);
             const ctx = await generateContext(challenge, ideaA, ideaB, "neither", undefined, 1);
@@ -494,15 +511,26 @@ function TetralemmaInner() {
         </div>
 
         <div style={{ display:"flex", gap:10 }}>
-          <button disabled={loading || neitherContexts.length >= 3} onClick={async () => {
-            setLoading(true);
-            const nextIdx = neitherContexts.length + 1;
-            const ctx = await generateContext(challenge, ideaA, ideaB, "neither", undefined, nextIdx);
-            setNeitherContexts(prev => [...prev, ctx]); setLoading(false);
-            if (sessionId) sessionPost("add-context", { id: sessionId, position: "neither", context: ctx });
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: neitherContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: neitherContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
-            {neitherContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
-          </button>
+          {(() => {
+            const myTurn2 = !sessionId || (session?.neitherReshuffleRole === myRole);
+            const partnerN2 = sessionId ? (isHost ? session?.guestName : session?.hostName) : "";
+            const atMax2 = neitherContexts.length >= 3;
+            return myTurn2 ? (
+              <button disabled={loading || atMax2} onClick={async () => {
+                setLoading(true);
+                const nextIdx = neitherContexts.length + 1;
+                const ctx = await generateContext(challenge, ideaA, ideaB, "neither", undefined, nextIdx);
+                setNeitherContexts(prev => [...prev, ctx]); setLoading(false);
+                if (sessionId) { sessionPost("add-context", { id: sessionId, position: "neither", context: ctx }); sessionPost("flip-reshuffle-role", { id: sessionId, position: "neither" }); }
+              }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: atMax2 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: atMax2 ? "#bbb" : c, fontFamily:FONT }}>
+                {atMax2 ? "Max 3 reached" : "✦ Reshuffle — add another"}
+              </button>
+            ) : (
+              <div style={{ flex:1, padding:"12px", borderRadius:12, fontSize:13, color:"#aaa", border:"1.5px solid #eee", background:"#fafafa", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                Waiting for {partnerN2} to reshuffle…
+              </div>
+            );
+          })()}
           <ReadyGate nextPhase="tabula" onSoloContinue={() => setPhase("tabula")} />
         </div>
       </>);

@@ -38,9 +38,10 @@ export interface TetralemmaSession {
   bothContexts:    string[];
   neitherContexts: string[];
   solution: string;
-  // Both-ready gate for phase advances
   readyHost:  boolean;
   readyGuest: boolean;
+  bothReshuffleRole:    "host" | "guest";
+  neitherReshuffleRole: "host" | "guest";
   createdAt: number;
 }
 
@@ -51,7 +52,10 @@ export async function createTetralemma(id: string, hostName: string, challenge: 
     id, challenge, ideaA: "", ideaB: "", hostName, guestName: "",
     phase: "lobby", currentSide: "A", currentContext: "",
     bothContexts: [], neitherContexts: [], solution: "",
-    readyHost: false, readyGuest: false, createdAt: Date.now(),
+    readyHost: false, readyGuest: false,
+  bothReshuffleRole: "host" as "host"|"guest",
+  neitherReshuffleRole: "host" as "host"|"guest",
+  createdAt: Date.now(),
   };
   await redisSet(KEY(id), s);
   return s;
