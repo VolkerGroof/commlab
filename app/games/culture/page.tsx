@@ -339,8 +339,9 @@ function CultureInner() {
   const [joinError, setJoinError] = useState("");
 
   // Scoring state
-  const [answers, setAnswers]   = useState<number[]>([0, 0, 0]);
+  const [answers, setAnswers]     = useState<number[]>([0, 0, 0]);
   const [submitted, setSubmitted] = useState(false);
+  const [currentQ, setCurrentQ]  = useState(0); // which of the 3 questions we're on
 
   // Agreements
   const [loadingAg, setLoadingAg] = useState(false);
@@ -360,7 +361,7 @@ function CultureInner() {
     setSession(s);
     if (s.phase === "running" && uiPhase === "lobby") setUiPhase("scoring");
     if (s.dimPhase === "discussing" && uiPhase === "scoring") { setUiPhase("discussing"); setSubmitted(false); setAnswers([0,0,0]); }
-    if (s.dimPhase === "scoring" && uiPhase === "discussing") { setUiPhase("scoring"); setSubmitted(false); setAnswers([0,0,0]); }
+    if (s.dimPhase === "scoring" && uiPhase === "discussing") { setUiPhase("scoring"); setSubmitted(false); setAnswers([0,0,0]); setCurrentQ(0); }
     if (s.phase === "done" && uiPhase !== "done") setUiPhase("done");
   }, [sessionId, uiPhase]);
 
@@ -473,7 +474,20 @@ function CultureInner() {
       </div>
     );
 
-    const canSubmit = answers.every(a => a >= 1 && a <= 6);
+    const q = dim.questions[currentQ];
+
+    async function pickAnswer(value: number) {
+      const newAnswers = [...answers];
+      newAnswers[currentQ] = value;
+      setAnswers(newAnswers);
+      if (currentQ < 2) {
+        setCurrentQ(q => q + 1);
+      } else {
+        // all 3 answered — auto submit
+        const s = await apiPost("submit-scores", { id: sessionId, name: myName, answers: newAnswers });
+        if (s) { setSession(s); if (s.dimPhase === "discussing") setUiPhase("discussing"); }
+      }
+    }
 
     return wrap(<>
       <div style={{ display:"flex", gap:6, marginBottom:20, flexWrap:"wrap" }}>
@@ -482,36 +496,31 @@ function CultureInner() {
         ))}
       </div>
       <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>
-        DIMENSION {session.currentDim + 1} OF 8
+        DIMENSION {session.currentDim + 1} OF 8 · QUESTION {currentQ + 1} OF 3
       </p>
-      <h2 style={{ fontSize:22, fontWeight:700, color:dim.color, margin:"0 0 4px" }}>{dim.icon} {dim.name}</h2>
-      <p style={{ fontSize:13, color:"#aaa", margin:"0 0 24px" }}>{dim.leftLabel} ↔ {dim.rightLabel}</p>
+      <div style={{ display:"flex", gap:5, marginBottom:20 }}>
+        {[0,1,2].map(i => <div key={i} style={{ flex:1, height:3, borderRadius:2, background: i < currentQ ? dim.color : i === currentQ ? `${dim.color}60` : "#e8e8e8" }} />)}
+      </div>
+      <h2 style={{ fontSize:20, fontWeight:700, color:dim.color, margin:"0 0 4px" }}>{dim.icon} {dim.name}</h2>
+      <p style={{ fontSize:13, color:"#aaa", margin:"0 0 20px" }}>{dim.leftLabel} ↔ {dim.rightLabel}</p>
 
-      {dim.questions.map((q, qi) => (
-        <div key={qi} style={{ background:"#fff", borderRadius:12, border:"1.5px solid #eee", padding:"16px 18px", marginBottom:12 }}>
-          <p style={{ fontSize:14, fontWeight:600, color:"#333", margin:"0 0 12px", lineHeight:1.5 }}>{q}</p>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            {dim.options[qi].map((opt, oi) => (
-              <button key={oi} onClick={() => setAnswers(prev => { const n=[...prev]; n[qi]=oi+1; return n; })} style={{
-                padding:"9px 14px", borderRadius:8, fontSize:13, cursor:"pointer", textAlign:"left",
-                border:`1.5px solid ${answers[qi]===oi+1 ? dim.color : "#e8e8e8"}`,
-                background: answers[qi]===oi+1 ? `${dim.color}12` : "#fafafa",
-                color: answers[qi]===oi+1 ? dim.color : "#555",
-                fontFamily:FONT, fontWeight: answers[qi]===oi+1 ? 600 : 400,
-              }}>
-                <span style={{ fontSize:11, color:"#bbb", marginRight:8 }}>{oi+1}</span>{opt}
-              </button>
-            ))}
-          </div>
+      <div style={{ background:"#fff", borderRadius:14, border:`1.5px solid ${dim.color}30`, padding:"18px 18px", marginBottom:14 }}>
+        <p style={{ fontSize:15, fontWeight:600, color:"#333", margin:"0 0 16px", lineHeight:1.5 }}>{q}</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {dim.options[currentQ].map((opt, oi) => (
+            <button key={oi} onClick={() => pickAnswer(oi + 1)} style={{
+              padding:"11px 16px", borderRadius:10, fontSize:13, cursor:"pointer", textAlign:"left",
+              border:`1.5px solid ${dim.color}30`, background:"#fafafa", color:"#555",
+              fontFamily:FONT, transition:"all 0.12s",
+            }}
+            onMouseEnter={e => { (e.target as HTMLElement).style.background = `${dim.color}10`; (e.target as HTMLElement).style.borderColor = dim.color; }}
+            onMouseLeave={e => { (e.target as HTMLElement).style.background = "#fafafa"; (e.target as HTMLElement).style.borderColor = `${dim.color}30`; }}
+            >
+              <span style={{ fontSize:11, color:"#bbb", marginRight:8 }}>{oi + 1}</span>{opt}
+            </button>
+          ))}
         </div>
-      ))}
-
-      <button disabled={!canSubmit} onClick={async () => {
-        const s = await apiPost("submit-scores", { id: sessionId, name: myName, answers });
-        if (s) { setSession(s); setSubmitted(true); if (s.dimPhase === "discussing") setUiPhase("discussing"); }
-      }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:canSubmit ? "pointer":"not-allowed", border:"none", fontFamily:FONT, background:canSubmit ? dim.color:"#e8e8e8", color:canSubmit ? "#fff":"#bbb", marginTop:8 }}>
-        Submit my scores →
-      </button>
+      </div>
     </>);
   }
 
