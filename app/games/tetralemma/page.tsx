@@ -70,10 +70,10 @@ function Spinner() {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
-async function generateContext(challenge: string, ideaA: string, ideaB: string, position: string, side?: string): Promise<string> {
+async function generateContext(challenge: string, ideaA: string, ideaB: string, position: string, side?: string, contextIndex = 1): Promise<string> {
   const res = await fetch("/api/games/tetralemma/context", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ challenge, ideaA, ideaB, position, side }),
+    body: JSON.stringify({ challenge, ideaA, ideaB, position, side, contextIndex }),
   });
   const { context } = await res.json();
   return context ?? "";
@@ -458,7 +458,8 @@ function TetralemmaInner() {
         <div style={{ display:"flex", gap:10 }}>
           <button disabled={loading || bothContexts.length >= 3} onClick={async () => {
             setLoading(true);
-            const ctx = await generateContext(challenge, ideaA, ideaB, "both");
+            const nextIdx = bothContexts.length + 1;
+            const ctx = await generateContext(challenge, ideaA, ideaB, "both", undefined, nextIdx);
             setBothContexts(prev => [...prev, ctx]); setLoading(false);
             if (sessionId) sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
           }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: bothContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: bothContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
@@ -466,7 +467,7 @@ function TetralemmaInner() {
           </button>
           <ReadyGate nextPhase="neither" onSoloContinue={async () => {
             setPhase("neither"); setLoading(true);
-            const ctx = await generateContext(challenge, ideaA, ideaB, "neither");
+            const ctx = await generateContext(challenge, ideaA, ideaB, "neither", undefined, 1);
             setNeitherContexts([ctx]); setLoading(false);
             if (sessionId) {
               sessionPost("advance", { id: sessionId, phase: "neither" });
@@ -495,7 +496,8 @@ function TetralemmaInner() {
         <div style={{ display:"flex", gap:10 }}>
           <button disabled={loading || neitherContexts.length >= 3} onClick={async () => {
             setLoading(true);
-            const ctx = await generateContext(challenge, ideaA, ideaB, "neither");
+            const nextIdx = neitherContexts.length + 1;
+            const ctx = await generateContext(challenge, ideaA, ideaB, "neither", undefined, nextIdx);
             setNeitherContexts(prev => [...prev, ctx]); setLoading(false);
             if (sessionId) sessionPost("add-context", { id: sessionId, position: "neither", context: ctx });
           }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: neitherContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: neitherContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>

@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 const client = new Anthropic();
 
 export async function POST(req: NextRequest) {
-  const { challenge, ideaA, ideaB, position, side } = await req.json();
+  const { challenge, ideaA, ideaB, position, side, contextIndex = 1 } = await req.json();
 
   let prompt = "";
 
@@ -22,24 +22,34 @@ Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Ma
   }
 
   if (position === "both") {
+    const weirdLevel = contextIndex === 1
+      ? "realistic and plausible — a surprising but real scenario"
+      : contextIndex === 2
+      ? "unusual and unexpected — bend the normal rules, something counterintuitive or paradoxical"
+      : "wildly weird, surreal, or even seemingly impossible — a scenario that makes no conventional sense but somehow logically holds";
     prompt = `Challenge: "${challenge}"
 Idea A: "${ideaA}"
 Idea B: "${ideaB}"
 
-Create a surprising, specific scenario where BOTH "${ideaA}" AND "${ideaB}" are simultaneously valid and work well together. Show real reasoning for why each one applies here.
+Create a ${weirdLevel} scenario where BOTH "${ideaA}" AND "${ideaB}" are simultaneously valid and work together. Show the reasoning.
 
-Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Make it specific and revealing:
+Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Make it specific:
 {"points": ["single insight"]}`;
   }
 
   if (position === "neither") {
+    const weirdLevel = contextIndex === 1
+      ? "realistic and grounded — a plausible situation where both fail"
+      : contextIndex === 2
+      ? "unusual and provocative — bend the frame, something unexpected or absurd"
+      : "wildly surreal or even impossible — a scenario that breaks all conventions, where both ideas are hilariously or cosmically irrelevant";
     prompt = `Challenge: "${challenge}"
 Idea A: "${ideaA}"
 Idea B: "${ideaB}"
 
-Create a specific scenario where NEITHER "${ideaA}" NOR "${ideaB}" is the right answer — a completely different approach is needed. Explain why both fail here and hint at what kind of third path might work.
+Create a ${weirdLevel} scenario where NEITHER "${ideaA}" NOR "${ideaB}" is the right answer. Hint at what completely different approach might be needed.
 
-Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Make it specific and revealing:
+Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words):
 {"points": ["single insight"]}`;
   }
 
