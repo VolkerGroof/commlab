@@ -160,9 +160,19 @@ export default function RadicalCandorPage() {
 
   async function loadScenarios() {
     setStep("loading-scenarios");
-    const res = await fetch("/api/games/radical-candor/scenario");
-    const list = await res.json();
-    setScenarios(list); setStep("pick");
+    try {
+      const res = await fetch("/api/games/radical-candor/scenario");
+      if (!res.ok) throw new Error("API error");
+      const list = await res.json();
+      if (!Array.isArray(list) || list.length === 0) throw new Error("Empty response");
+      setScenarios(list);
+      setStep("pick");
+    } catch (e) {
+      console.error("loadScenarios failed:", e);
+      // Fallback: go back to intro with error
+      setStep("intro");
+      alert("Failed to load scenarios. Please try again.");
+    }
   }
 
   function pickScenario(s: Scenario) {
@@ -236,6 +246,11 @@ export default function RadicalCandorPage() {
   if (step === "pick") return wrap(<>
     <h2 style={{ fontSize:20, fontWeight:700, color:"#111", margin:"0 0 6px" }}>Choose a situation</h2>
     <p style={{ fontSize:14, color:"#aaa", margin:"0 0 20px" }}>Pick one to practice your feedback on:</p>
+    {scenarios.length === 0 && (
+      <button onClick={loadScenarios} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+        Retry loading scenarios →
+      </button>
+    )}
     <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
       {scenarios.map((s, i) => (
         <button key={i} onClick={() => pickScenario(s)} style={{
