@@ -349,7 +349,9 @@ function CultureInner() {
   // Done/guidance
   const [guidance, setGuidance] = useState<{dimension:string; watchOut:string; tip:string}[]>([]);
   const [loadingGuide, setLoadingGuide] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]           = useState(false);
+  const [proposalText, setProposalText]   = useState("");
+  const [showProposalInput, setShowProposalInput] = useState(false);
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/games/culture?s=${sessionId}` : "";
 
@@ -560,9 +562,6 @@ function CultureInner() {
 
       {/* Agreements area */}
       {(() => {
-        const [proposalText, setProposalText] = useState("");
-        const [showProposalInput, setShowProposalInput] = useState(false);
-
         return (
           <>
             {/* Action buttons */}
