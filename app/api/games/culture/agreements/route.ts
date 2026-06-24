@@ -23,10 +23,10 @@ Scale: 1=${dimension.leftLabel} ↔ 6=${dimension.rightLabel}
 Team scores: ${scoreList}
 Score spread: ${spread} (${spread >= 3 ? "high diversity" : spread >= 2 ? "moderate diversity" : "good alignment"})
 
-Generate 3 concrete, actionable team agreements that address the differences and help this team work better together on this dimension. Each agreement should be practical and specific — something the team can actually do differently starting tomorrow.
+Generate 3 concrete, actionable team agreements. Each agreement MUST be maximum 1-2 short sentences. No lists, no sub-bullets. Direct and specific — something the team can do differently starting tomorrow.
 
-Return ONLY valid JSON array of 3 strings:
-["Agreement 1 text", "Agreement 2 text", "Agreement 3 text"]`,
+Return ONLY valid JSON array of 3 short strings (each max 30 words):
+["Short agreement 1", "Short agreement 2", "Short agreement 3"]`,
     }],
   });
 

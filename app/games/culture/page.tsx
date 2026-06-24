@@ -530,67 +530,109 @@ function CultureInner() {
 
       <ScaleVisual scores={dimScores} dim={dim} color={dim.color} />
 
-      {/* Potential problems */}
-      <div style={{ background:"#fff8f0", border:"1.5px solid #e07a3a30", borderRadius:12, padding:"14px 18px", marginBottom:16 }}>
-        <p style={{ fontSize:11, fontWeight:700, color:"#e07a3a", letterSpacing:"0.07em", margin:"0 0 8px" }}>POSSIBLE FRICTION POINTS</p>
-        {dim.problems.map((p, i) => (
-          <div key={i} style={{ display:"flex", gap:8, marginBottom: i<2 ? 6:0 }}>
-            <span style={{ color:"#e07a3a", flexShrink:0 }}>→</span>
-            <span style={{ fontSize:13, color:"#666" }}>{p}</span>
+      {/* Friction points with real names */}
+      {(() => {
+        const highNames = Object.entries(dimScores).filter(([,s]) => s >= 4).map(([n]) => n);
+        const lowNames  = Object.entries(dimScores).filter(([,s]) => s <= 3).map(([n]) => n);
+        const subst = (txt: string) => txt
+          .replace(/high scorers?/gi, highNames.length ? highNames.join(" & ") : "higher scorers")
+          .replace(/low scorers?/gi,  lowNames.length  ? lowNames.join(" & ")  : "lower scorers");
+        return (
+          <div style={{ background:"#fff8f0", border:"1.5px solid #e07a3a30", borderRadius:12, padding:"14px 18px", marginBottom:16 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:"#e07a3a", letterSpacing:"0.07em", margin:"0 0 8px" }}>POSSIBLE FRICTION POINTS</p>
+            {dim.problems.map((p, i) => (
+              <div key={i} style={{ display:"flex", gap:8, marginBottom: i<2 ? 6:0 }}>
+                <span style={{ color:"#e07a3a", flexShrink:0 }}>→</span>
+                <span style={{ fontSize:13, color:"#666" }}>{subst(p)}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
-      <p style={{ fontSize:14, fontWeight:600, color:"#333", margin:"0 0 12px" }}>Discuss → then generate agreements:</p>
+      <p style={{ fontSize:14, fontWeight:600, color:"#333", margin:"0 0 12px" }}>Discuss → then handle agreements:</p>
 
-      {/* Agreements */}
-      {session.agreements.length === 0 ? (
-        <button disabled={loadingAg} onClick={async () => {
-          setLoadingAg(true);
-          const dimInfo = { name: dim.name, leftLabel: dim.leftLabel, rightLabel: dim.rightLabel };
-          const res = await fetch("/api/games/culture/agreements", {
-            method:"POST", headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({ dimension: dimInfo, scores: dimScores, participants: session.participants }),
-          });
-          const { agreements: texts } = await res.json();
-          const s = await apiPost("set-agreements", { id: sessionId, agreements: texts });
-          if (s) setSession(s);
-          setLoadingAg(false);
-        }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${dim.color}50`, background:`${dim.color}08`, color:loadingAg ? "#bbb" : dim.color, fontFamily:FONT, marginBottom:16 }}>
-          {loadingAg ? "Generating…" : "✦ Generate team agreements"}
-        </button>
-      ) : (
-        <>
-          <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em", margin:"0 0 10px" }}>PROPOSED AGREEMENTS — accept each individually</p>
-          {session.agreements.map(ag => (
-            <AgreementCard key={ag.id} ag={ag} myName={myName} participants={session.participants}
-              onApprove={async () => {
-                const s = await apiPost("approve-agreement", { id: sessionId, agId: ag.id, name: myName });
+      {/* Agreements area */}
+      {(() => {
+        const [proposalText, setProposalText] = useState("");
+        const [showProposalInput, setShowProposalInput] = useState(false);
+
+        return (
+          <>
+            {/* Action buttons */}
+            <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+              <button disabled={loadingAg} onClick={async () => {
+                setLoadingAg(true);
+                const dimInfo = { name: dim.name, leftLabel: dim.leftLabel, rightLabel: dim.rightLabel };
+                const res = await fetch("/api/games/culture/agreements", {
+                  method:"POST", headers:{"Content-Type":"application/json"},
+                  body: JSON.stringify({ dimension: dimInfo, scores: dimScores, participants: session.participants }),
+                });
+                const { agreements: texts } = await res.json();
+                const s = await apiPost("set-agreements", { id: sessionId, agreements: texts });
                 if (s) setSession(s);
-              }}
-              onEdit={async (text) => {
-                const s = await apiPost("edit-agreement", { id: sessionId, agId: ag.id, text });
-                if (s) setSession(s);
-              }}
-            />
-          ))}
+                setLoadingAg(false);
+              }} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${dim.color}50`, background:`${dim.color}08`, color:loadingAg ? "#bbb" : dim.color, fontFamily:FONT }}>
+                {loadingAg ? "Generating…" : "✦ Generate proposals"}
+              </button>
+              <button onClick={() => setShowProposalInput(v => !v)} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontFamily:FONT }}>
+                + Add a proposal
+              </button>
+              <button onClick={async () => {
+                const s = await apiPost("advance-dimension", { id: sessionId });
+                if (s) { setSession(s); setAnswers([0,0,0]); setSubmitted(false); setUiPhase(s.phase === "done" ? "done" : "scoring"); }
+              }} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:"1.5px solid #bbb", background:"#fafafa", color:"#888", fontFamily:FONT }}>
+                None needed →
+              </button>
+            </div>
 
-          {allAgreementsAccepted && isHost && (
-            <button onClick={async () => {
-              const s = await apiPost("advance-dimension", { id: sessionId });
-              if (s) { setSession(s); setAnswers([0,0,0]); setSubmitted(false); setUiPhase(s.phase === "done" ? "done" : "scoring"); }
-            }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:"#1d9e75", color:"#fff", marginTop:8 }}>
-              {session.currentDim < 7 ? `Continue to ${DIMENSIONS[session.currentDim + 1]?.name} →` : "Complete assessment →"}
-            </button>
-          )}
-          {allAgreementsAccepted && !isHost && (
-            <p style={{ fontSize:13, color:"#1d9e75", textAlign:"center", marginTop:8, fontWeight:600 }}>✓ All agreements accepted — waiting for host to advance</p>
-          )}
-          {!allAgreementsAccepted && (
-            <p style={{ fontSize:12, color:"#aaa", textAlign:"center", marginTop:8 }}>All team members must accept all agreements to continue</p>
-          )}
-        </>
-      )}
+            {showProposalInput && (
+              <div style={{ background:"#fff", borderRadius:12, border:"1.5px solid #e0e0e0", padding:"12px 14px", marginBottom:10 }}>
+                <input value={proposalText} onChange={e => setProposalText(e.target.value)} placeholder="Write your proposal…" style={{ ...inputSt(), marginBottom:8 }} />
+                <button disabled={!proposalText.trim()} onClick={async () => {
+                  const s = await apiPost("add-agreement", { id: sessionId, text: proposalText.trim() });
+                  if (s) { setSession(s); setProposalText(""); setShowProposalInput(false); }
+                }} style={{ padding:"7px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:"none", background:dim.color, color:"#fff", fontFamily:FONT }}>
+                  Add →
+                </button>
+              </div>
+            )}
+
+            {session.agreements.length > 0 && (
+              <>
+                <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em", margin:"0 0 10px" }}>PROPOSALS — accept each individually</p>
+                {session.agreements.map(ag => (
+                  <AgreementCard key={ag.id} ag={ag} myName={myName} participants={session.participants}
+                    onApprove={async () => {
+                      const s = await apiPost("approve-agreement", { id: sessionId, agId: ag.id, name: myName });
+                      if (s) setSession(s);
+                    }}
+                    onEdit={async (text) => {
+                      const s = await apiPost("edit-agreement", { id: sessionId, agId: ag.id, text });
+                      if (s) setSession(s);
+                    }}
+                  />
+                ))}
+
+                {allAgreementsAccepted && isHost && (
+                  <button onClick={async () => {
+                    const s = await apiPost("advance-dimension", { id: sessionId });
+                    if (s) { setSession(s); setAnswers([0,0,0]); setSubmitted(false); setUiPhase(s.phase === "done" ? "done" : "scoring"); }
+                  }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:"#1d9e75", color:"#fff", marginTop:8 }}>
+                    {session.currentDim < 7 ? `Continue to ${DIMENSIONS[session.currentDim + 1]?.name} →` : "Complete assessment →"}
+                  </button>
+                )}
+                {allAgreementsAccepted && !isHost && (
+                  <p style={{ fontSize:13, color:"#1d9e75", textAlign:"center", marginTop:8, fontWeight:600 }}>✓ All accepted — waiting for host to advance</p>
+                )}
+                {!allAgreementsAccepted && (
+                  <p style={{ fontSize:12, color:"#aaa", textAlign:"center", marginTop:8 }}>Everyone must accept all proposals to continue</p>
+                )}
+              </>
+            )}
+          </>
+        );
+      })()}
     </>);
   }
 
