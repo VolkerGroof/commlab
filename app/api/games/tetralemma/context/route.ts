@@ -17,8 +17,8 @@ Idea B: "${ideaB}"
 
 Create a specific, vivid scenario where "${activeIdea}" clearly works — and explain with real reasoning WHY it works in this context and WHY "${inactiveIdea}" would fail or be the wrong approach here.
 
-Return ONLY valid JSON with exactly 3-4 bullet points. Each bullet max 20 words. Be concrete and show genuine reasoning — not generic statements:
-{"points": ["reason 1", "reason 2", "reason 3", "reason 4"]}`;
+Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Make it specific and revealing — show the real reasoning:
+{"points": ["single insight"]}`;
   }
 
   if (position === "both") {
@@ -28,8 +28,8 @@ Idea B: "${ideaB}"
 
 Create a surprising, specific scenario where BOTH "${ideaA}" AND "${ideaB}" are simultaneously valid and work well together. Show real reasoning for why each one applies here.
 
-Return ONLY valid JSON with exactly 3-4 bullet points (max 20 words each):
-{"points": ["reason 1", "reason 2", "reason 3", "reason 4"]}`;
+Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Make it specific and revealing:
+{"points": ["single insight"]}`;
   }
 
   if (position === "neither") {
@@ -39,8 +39,8 @@ Idea B: "${ideaB}"
 
 Create a specific scenario where NEITHER "${ideaA}" NOR "${ideaB}" is the right answer — a completely different approach is needed. Explain why both fail here and hint at what kind of third path might work.
 
-Return ONLY valid JSON with exactly 3-4 bullet points (max 20 words each):
-{"points": ["reason 1", "reason 2", "reason 3", "reason 4"]}`;
+Return ONLY valid JSON with exactly 1 concise, punchy insight (max 25 words). Make it specific and revealing:
+{"points": ["single insight"]}`;
   }
 
   const msg = await client.messages.create({
