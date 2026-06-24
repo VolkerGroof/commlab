@@ -13,7 +13,7 @@ interface Evaluation {
   howTheyFeel: string; coaching: string[]; summary: string;
 }
 
-type AppStep = "loading-scenario" | "input" | "evaluating" | "result";
+type AppStep = "intro" | "loading-scenario" | "input" | "evaluating" | "result";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ function useVoice(appendText: (t: string) => void) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function RadicalCandorPage() {
-  const [step, setStep]         = useState<AppStep>("loading-scenario");
+  const [step, setStep]         = useState<AppStep>("intro");
   const [scenario, setScenario] = useState<Scenario|null>(null);
   const [feedback, setFeedback] = useState("");
   const [evaluation, setEval]   = useState<Evaluation|null>(null);
@@ -184,8 +184,36 @@ export default function RadicalCandorPage() {
     setImproved(imp); setLoadingImprove(false);
   }
 
-  // Auto-load on mount
-  useEffect(() => { loadScenario(); }, []);
+  // no auto-load — user clicks Start
+
+  // ── Intro ──
+  if (step === "intro") return wrap(<>
+    <h1 style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.5px", color:"#111", margin:"0 0 8px" }}>Feedback Training</h1>
+    <p style={{ fontSize:15, color:"#888", margin:"0 0 28px", lineHeight:1.6 }}>
+      Practice giving feedback that's honest, caring, and direct — based on Kim Scott's Radical Candor framework.
+    </p>
+    <div style={{ background:`${COLOR}08`, border:`1.5px solid ${COLOR}25`, borderRadius:14, padding:"18px 20px", marginBottom:28 }}>
+      <p style={{ fontSize:13, fontWeight:700, color:COLOR, letterSpacing:"0.06em", margin:"0 0 12px" }}>HOW IT WORKS</p>
+      {[
+        "You get a realistic scenario — your role, the other person, and what happened",
+        "Formulate your feedback: type it or speak it into the mic",
+        "The tool scores you on Care Personally and Challenge Directly",
+        "You see where you land on the Radical Candor matrix and get coaching tips",
+        "Optionally see an improved version — then try again or get a new scenario",
+      ].map((s, i) => (
+        <div key={i} style={{ display:"flex", gap:10, marginBottom: i < 4 ? 8 : 0 }}>
+          <span style={{ fontSize:11, fontWeight:700, color:COLOR, minWidth:18 }}>{i+1}</span>
+          <span style={{ fontSize:13, color:"#666" }}>{s}</span>
+        </div>
+      ))}
+    </div>
+    <button onClick={loadScenario} style={{
+      width:"100%", padding:"14px 24px", borderRadius:12, fontSize:15, fontWeight:600,
+      cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff",
+    }}>
+      Start training →
+    </button>
+  </>);
 
   // ── Loading ──
   if (step === "loading-scenario") return wrap(
