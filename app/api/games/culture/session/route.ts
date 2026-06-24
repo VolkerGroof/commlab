@@ -85,15 +85,36 @@ export async function POST(req: NextRequest) {
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
+  if (action === "toggle-none-needed") {
+    const s = await mutateCulture(body.id, sess => {
+      if (!sess.noneNeededApprovals) sess.noneNeededApprovals = [];
+      const idx = sess.noneNeededApprovals.indexOf(body.name);
+      if (idx >= 0) sess.noneNeededApprovals.splice(idx, 1);
+      else sess.noneNeededApprovals.push(body.name);
+      // Auto-advance when all agree
+      if (sess.noneNeededApprovals.length === sess.participants.length) {
+        sess.allAgreements[sess.currentDim] = [];
+        sess.currentDim += 1;
+        sess.dimPhase = "scoring";
+        sess.scores = {};
+        sess.agreements = [];
+        sess.dimReadyToAdvance = [];
+        sess.noneNeededApprovals = [];
+        if (sess.currentDim >= 8) sess.phase = "done";
+      }
+    });
+    return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+
   if (action === "advance-dimension") {
     const s = await mutateCulture(body.id, sess => {
-      // Save agreements for this dimension
       sess.allAgreements[sess.currentDim] = sess.agreements.map(a => a.text);
       sess.currentDim += 1;
       sess.dimPhase = "scoring";
       sess.scores = {};
       sess.agreements = [];
       sess.dimReadyToAdvance = [];
+      sess.noneNeededApprovals = [];
       if (sess.currentDim >= 8) sess.phase = "done";
     });
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });

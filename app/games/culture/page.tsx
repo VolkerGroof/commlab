@@ -583,12 +583,19 @@ function CultureInner() {
               <button onClick={() => setShowProposalInput(v => !v)} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontFamily:FONT }}>
                 + Add a proposal
               </button>
-              <button onClick={async () => {
-                const s = await apiPost("advance-dimension", { id: sessionId });
-                if (s) { setSession(s); setAnswers([0,0,0]); setSubmitted(false); setUiPhase(s.phase === "done" ? "done" : "scoring"); }
-              }} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:"1.5px solid #bbb", background:"#fafafa", color:"#888", fontFamily:FONT }}>
-                None needed →
-              </button>
+              {(() => {
+                const myNone = (session.noneNeededApprovals ?? []).includes(myName);
+                const noneCount = (session.noneNeededApprovals ?? []).length;
+                const allNone = noneCount === session.participants.length;
+                return (
+                  <button onClick={async () => {
+                    const s = await apiPost("toggle-none-needed", { id: sessionId, name: myName });
+                    if (s) { setSession(s); if (s.dimPhase === "scoring") { setAnswers([0,0,0]); setCurrentQ(0); setUiPhase(s.phase === "done" ? "done" : "scoring"); } }
+                  }} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${myNone ? "#1d9e75" : "#bbb"}`, background:myNone ? "#1d9e7515":"#fafafa", color:myNone ? "#1d9e75":"#888", fontFamily:FONT }}>
+                    {allNone ? "Advancing…" : `None needed ${noneCount > 0 ? `(${noneCount}/${session.participants.length})` : ""}`}
+                  </button>
+                );
+              })()}
             </div>
 
             {showProposalInput && (
@@ -643,62 +650,102 @@ function CultureInner() {
 
   // ── Done ──
   if (uiPhase === "done" && session) {
+    const agreementsText = DIMENSIONS.map((d, i) => {
+      const ags = session.allAgreements[i] ?? [];
+      if (ags.length === 0) return `${d.icon} ${d.name}: No agreements`;
+      return `${d.icon} ${d.name}:\n${ags.map((a, n) => `  ${n+1}. ${a}`).join("\n")}`;
+    }).join("\n\n");
+
+    const guideText = guidance.length > 0
+      ? `EVERYONE CULTURE — PERSONAL GUIDE\n${myName}\n\n` +
+        guidance.map(g => `${g.dimension}\nWatch out for: ${g.watchOut}\nTip: ${g.tip}`).join("\n\n")
+      : "";
+
+    const fullCopyText = `EVERYONE CULTURE — ${session.participants.join(", ")}\n\nAGREEMENTS BY DIMENSION:\n\n${agreementsText}`;
+
     async function generateGuide() {
       if (!session) return;
       setLoadingGuide(true);
-      const res = await fetch("/api/games/culture/guidance", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          myName, allScores: session.allScores,
-          participants: session.participants,
-          dimensions: DIMENSIONS.map(d => ({ name:d.name, leftLabel:d.leftLabel, rightLabel:d.rightLabel })),
-          allAgreements: session.allAgreements,
-        }),
-      });
-      const { guidance: g } = await res.json();
-      setGuidance(g); setLoadingGuide(false);
+      try {
+        const res = await fetch("/api/games/culture/guidance", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({
+            myName, allScores: session.allScores,
+            participants: session.participants,
+            dimensions: DIMENSIONS.map(d => ({ name:d.name, leftLabel:d.leftLabel, rightLabel:d.rightLabel })),
+            allAgreements: session.allAgreements,
+          }),
+        });
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        if (Array.isArray(data.guidance)) setGuidance(data.guidance);
+        else throw new Error("Bad response");
+      } catch (e) {
+        console.error("Guidance failed:", e);
+      } finally {
+        setLoadingGuide(false);
+      }
     }
 
-    const guideText = guidance.length > 0 ? `EVERYONE CULTURE — MY GUIDE\n${myName}\n\n` +
-      guidance.map(g => `${g.dimension}\nWatch out for: ${g.watchOut}\nTip: ${g.tip}`).join("\n\n") : "";
-
     return wrap(<>
-      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 6px" }}>ASSESSMENT COMPLETE</p>
+      {/* Progress bar — all green */}
+      <div style={{ display:"flex", gap:6, marginBottom:20 }}>
+        {DIMENSIONS.map((d) => <div key={d.name} style={{ flex:1, height:6, borderRadius:3, background:"#1d9e75" }} />)}
+      </div>
+
+      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>ASSESSMENT COMPLETE</p>
       <h2 style={{ fontSize:22, fontWeight:700, color:COLOR, margin:"0 0 20px" }}>All 8 dimensions mapped!</h2>
 
-      {/* Summary grid */}
-      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:28 }}>
+      {/* Agreements per dimension */}
+      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 12px" }}>TEAM AGREEMENTS</p>
+      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
         {DIMENSIONS.map((d, i) => {
+          const ags = session.allAgreements[i] ?? [];
           const myScore = session.allScores[myName]?.[i] ?? 0;
           return (
-            <div key={d.name} style={{ background:"#fff", borderRadius:10, border:"1.5px solid #eee", padding:"10px 14px", display:"flex", alignItems:"center", gap:12 }}>
-              <span style={{ fontSize:18 }}>{d.icon}</span>
-              <span style={{ fontSize:13, fontWeight:600, color:"#333", flex:1 }}>{d.name}</span>
-              <span style={{ fontSize:12, color:d.color, fontWeight:700, background:`${d.color}15`, borderRadius:6, padding:"2px 8px" }}>
-                You: {myScore}/6
-              </span>
-              <span style={{ fontSize:11, color:"#bbb" }}>{session.allAgreements[i]?.length ?? 0} agreements</span>
+            <div key={d.name} style={{ background:"#fff", borderRadius:12, border:"1.5px solid #eee", overflow:"hidden" }}>
+              <div style={{ background:`${d.color}08`, borderBottom:"1px solid #eee", padding:"8px 14px", display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontSize:15 }}>{d.icon}</span>
+                <span style={{ fontSize:13, fontWeight:700, color:d.color, flex:1 }}>{d.name}</span>
+                <span style={{ fontSize:11, color:d.color, background:`${d.color}15`, borderRadius:6, padding:"2px 8px" }}>You: {myScore}/6</span>
+              </div>
+              <div style={{ padding:"10px 14px" }}>
+                {ags.length === 0
+                  ? <span style={{ fontSize:12, color:"#ccc" }}>No agreements</span>
+                  : ags.map((a, n) => (
+                    <div key={n} style={{ display:"flex", gap:8, marginBottom: n < ags.length-1 ? 6 : 0 }}>
+                      <span style={{ fontSize:12, color:d.color, fontWeight:700, flexShrink:0 }}>{n+1}.</span>
+                      <span style={{ fontSize:13, color:"#555", lineHeight:1.4 }}>{a}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           );
         })}
       </div>
 
+      {/* Copy agreements */}
+      <button onClick={() => { navigator.clipboard.writeText(fullCopyText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width:"100%", padding:"11px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:FONT, border:`1.5px solid ${copied ? "#1d9e75" : "#ddd"}`, background:copied ? "#1d9e7515":"#fff", color:copied ? "#1d9e75":"#555", transition:"all 0.2s", marginBottom:20 }}>
+        {copied ? "Copied ✓" : "Copy all agreements to clipboard"}
+      </button>
+
+      {/* Personal guide */}
       {guidance.length === 0 ? (
-        <button onClick={generateGuide} disabled={loadingGuide} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:loadingGuide ? "#e8e8e8" : COLOR, color:loadingGuide ? "#bbb":"#fff", marginBottom:12 }}>
+        <button onClick={generateGuide} disabled={loadingGuide} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:loadingGuide ? "#e8e8e8":COLOR, color:loadingGuide ? "#bbb":"#fff" }}>
           {loadingGuide ? "Generating your personal guide…" : "Generate my personal guide →"}
         </button>
       ) : (
         <>
           <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 12px" }}>YOUR PERSONAL GUIDE — {myName.toUpperCase()}</p>
           {guidance.map((g, i) => (
-            <div key={i} style={{ background:"#fff", borderRadius:12, border:`1.5px solid ${DIMENSIONS[i]?.color}30`, padding:"14px 16px", marginBottom:10 }}>
-              <p style={{ fontSize:12, fontWeight:700, color:DIMENSIONS[i]?.color, margin:"0 0 6px" }}>{DIMENSIONS[i]?.icon} {g.dimension}</p>
+            <div key={i} style={{ background:"#fff", borderRadius:12, border:`1.5px solid ${DIMENSIONS[i]?.color ?? "#eee"}30`, padding:"14px 16px", marginBottom:10 }}>
+              <p style={{ fontSize:12, fontWeight:700, color:DIMENSIONS[i]?.color ?? COLOR, margin:"0 0 6px" }}>{DIMENSIONS[i]?.icon} {g.dimension}</p>
               <p style={{ fontSize:13, color:"#555", margin:"0 0 4px", lineHeight:1.5 }}><strong>Watch out for:</strong> {g.watchOut}</p>
               <p style={{ fontSize:13, color:"#1d9e75", margin:0, lineHeight:1.5 }}>💡 {g.tip}</p>
             </div>
           ))}
-          <button onClick={() => { navigator.clipboard.writeText(guideText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:FONT, border:`1.5px solid ${copied ? "#1d9e75" : `${COLOR}50`}`, background: copied ? "#1d9e7515" : `${COLOR}08`, color: copied ? "#1d9e75" : COLOR, transition:"all 0.2s" }}>
-            {copied ? "Copied ✓" : "Copy my guide to clipboard"}
+          <button onClick={() => { navigator.clipboard.writeText(guideText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:FONT, border:`1.5px solid ${copied ? "#1d9e75":"#ddd"}`, background:copied ? "#1d9e7515":"#fff", color:copied ? "#1d9e75":"#555", transition:"all 0.2s" }}>
+            {copied ? "Copied ✓" : "Copy personal guide to clipboard"}
           </button>
         </>
       )}

@@ -43,6 +43,7 @@ export interface CultureSession {
   scores: Record<string, number[]>;  // name → [3 answers]
   agreements: CultureAgreement[];
   dimReadyToAdvance: string[];       // names who clicked "Move on"
+  noneNeededApprovals: string[];    // names who clicked "None needed"
   // Accumulated
   allScores: Record<string, number[]>;   // name → [8 avg scores]
   allAgreements: string[][];             // [dimIndex] → [agreement texts]
@@ -57,7 +58,7 @@ export async function createCulture(id: string, hostName: string): Promise<Cultu
   const s: CultureSession = {
     id, hostName, participants: [hostName],
     phase: "lobby", currentDim: 0, dimPhase: "scoring",
-    scores: {}, agreements: [], dimReadyToAdvance: [],
+    scores: {}, agreements: [], dimReadyToAdvance: [], noneNeededApprovals: [],
     allScores: {}, allAgreements: Array(8).fill([]),
     createdAt: Date.now(),
   };
