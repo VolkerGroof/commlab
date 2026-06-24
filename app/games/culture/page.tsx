@@ -474,17 +474,18 @@ function CultureInner() {
       </div>
     );
 
-    const q = dim.questions[currentQ];
+    const qIdx = Math.min(currentQ, 2);
+    const questionText = dim.questions[qIdx as 0|1|2];
+    const questionOpts = dim.options[qIdx as 0|1|2];
 
-    async function pickAnswer(value: number) {
-      const newAnswers = [...answers];
-      newAnswers[currentQ] = value;
-      setAnswers(newAnswers);
-      if (currentQ < 2) {
-        setCurrentQ(q => q + 1);
+    async function handlePick(value: number) {
+      const next = [...answers];
+      next[qIdx] = value;
+      setAnswers(next);
+      if (qIdx < 2) {
+        setCurrentQ(qIdx + 1);
       } else {
-        // all 3 answered — auto submit
-        const s = await apiPost("submit-scores", { id: sessionId, name: myName, answers: newAnswers });
+        const s = await apiPost("submit-scores", { id: sessionId, name: myName, answers: next });
         if (s) { setSession(s); if (s.dimPhase === "discussing") setUiPhase("discussing"); }
       }
     }
@@ -496,26 +497,22 @@ function CultureInner() {
         ))}
       </div>
       <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>
-        DIMENSION {session.currentDim + 1} OF 8 · QUESTION {currentQ + 1} OF 3
+        DIMENSION {session.currentDim + 1} OF 8 · QUESTION {qIdx + 1} OF 3
       </p>
       <div style={{ display:"flex", gap:5, marginBottom:20 }}>
-        {[0,1,2].map(i => <div key={i} style={{ flex:1, height:3, borderRadius:2, background: i < currentQ ? dim.color : i === currentQ ? `${dim.color}60` : "#e8e8e8" }} />)}
+        {[0,1,2].map(i => <div key={i} style={{ flex:1, height:3, borderRadius:2, background: i < qIdx ? dim.color : i === qIdx ? `${dim.color}60` : "#e8e8e8" }} />)}
       </div>
       <h2 style={{ fontSize:20, fontWeight:700, color:dim.color, margin:"0 0 4px" }}>{dim.icon} {dim.name}</h2>
       <p style={{ fontSize:13, color:"#aaa", margin:"0 0 20px" }}>{dim.leftLabel} ↔ {dim.rightLabel}</p>
 
       <div style={{ background:"#fff", borderRadius:14, border:`1.5px solid ${dim.color}30`, padding:"18px 18px", marginBottom:14 }}>
-        <p style={{ fontSize:15, fontWeight:600, color:"#333", margin:"0 0 16px", lineHeight:1.5 }}>{q}</p>
+        <p style={{ fontSize:15, fontWeight:600, color:"#333", margin:"0 0 16px", lineHeight:1.5 }}>{questionText}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {dim.options[currentQ].map((opt, oi) => (
-            <button key={oi} onClick={() => pickAnswer(oi + 1)} style={{
+          {questionOpts.map((opt, oi) => (
+            <button key={oi} onClick={() => handlePick(oi + 1)} style={{
               padding:"11px 16px", borderRadius:10, fontSize:13, cursor:"pointer", textAlign:"left",
-              border:`1.5px solid ${dim.color}30`, background:"#fafafa", color:"#555",
-              fontFamily:FONT, transition:"all 0.12s",
-            }}
-            onMouseEnter={e => { (e.target as HTMLElement).style.background = `${dim.color}10`; (e.target as HTMLElement).style.borderColor = dim.color; }}
-            onMouseLeave={e => { (e.target as HTMLElement).style.background = "#fafafa"; (e.target as HTMLElement).style.borderColor = `${dim.color}30`; }}
-            >
+              border:`1.5px solid ${dim.color}30`, background:"#fafafa", color:"#555", fontFamily:FONT,
+            }}>
               <span style={{ fontSize:11, color:"#bbb", marginRight:8 }}>{oi + 1}</span>{opt}
             </button>
           ))}
