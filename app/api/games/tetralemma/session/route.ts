@@ -45,8 +45,25 @@ export async function POST(req: NextRequest) {
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
+  if (action === "toggle-ready") {
+    const s = await mutateTetralemma(body.id, sess => {
+      if (body.role === "host")  sess.readyHost  = !sess.readyHost;
+      if (body.role === "guest") sess.readyGuest = !sess.readyGuest;
+      // Auto-advance when both ready
+      if (sess.readyHost && sess.readyGuest) {
+        sess.phase      = body.nextPhase;
+        sess.readyHost  = false;
+        sess.readyGuest = false;
+      }
+    });
+    return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+
   if (action === "advance") {
-    const s = await mutateTetralemma(body.id, sess => { sess.phase = body.phase; });
+    const s = await mutateTetralemma(body.id, sess => {
+      sess.phase = body.phase;
+      sess.readyHost = false; sess.readyGuest = false;
+    });
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

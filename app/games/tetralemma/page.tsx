@@ -150,6 +150,11 @@ function TetralemmaInner() {
   // Sync pair session phase → local state
   useEffect(() => {
     if (!session) return;
+    // Auto-advance when session phase changes due to both-ready
+    if (session.phase === "both"    && phase === "flip")    { setPhase("both");    setLoading(true); generateContext(challenge||session.challenge, session.ideaA, session.ideaB, "both").then(ctx => { setBothContexts([ctx]); setLoading(false); sessionPost("add-context", { id: sessionId, position: "both", context: ctx }); }); }
+    if (session.phase === "neither" && phase === "both")    { setPhase("neither"); setLoading(true); generateContext(challenge||session.challenge, session.ideaA, session.ideaB, "neither").then(ctx => { setNeitherContexts([ctx]); setLoading(false); sessionPost("add-context", { id: sessionId, position: "neither", context: ctx }); }); }
+    if (session.phase === "tabula"  && phase === "neither") { setPhase("tabula"); }
+
     if (session.phase === "flip") {
       if (mode !== "solo") setPhase("flip");
       if (session.currentContext) setFlipContext(session.currentContext);
@@ -359,6 +364,43 @@ function TetralemmaInner() {
       );
     };
 
+    // ── Both-ready gate (pair mode) ──
+    const myRole = isHost ? "host" : "guest";
+    const iAmReady = session ? (isHost ? session.readyHost : session.readyGuest) : false;
+    const partnerReady = session ? (isHost ? session.readyGuest : session.readyHost) : false;
+    const partnerName = session ? (isHost ? session.guestName : session.hostName) : "";
+
+    const ReadyGate = ({ nextPhase, onSoloContinue }: { nextPhase: string; onSoloContinue: () => void }) => {
+      if (!sessionId) {
+        return (
+          <button onClick={onSoloContinue} style={{ width:"100%", padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+            Continue →
+          </button>
+        );
+      }
+      return (
+        <div style={{ background:"#f9f9f7", border:"1.5px solid #e8e8e8", borderRadius:12, padding:"14px 16px" }}>
+          <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em", margin:"0 0 10px" }}>BOTH NEED TO BE READY TO CONTINUE</p>
+          <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+            <div style={{ flex:1, padding:"10px 14px", borderRadius:10, background: iAmReady ? `${COLOR}15` : "#fff", border:`1.5px solid ${iAmReady ? COLOR : "#e0e0e0"}`, textAlign:"center" }}>
+              <p style={{ fontSize:11, fontWeight:700, color:"#aaa", margin:"0 0 4px" }}>YOU</p>
+              <p style={{ fontSize:13, fontWeight:600, color: iAmReady ? COLOR : "#bbb", margin:0 }}>{iAmReady ? "✓ Ready" : "Not yet"}</p>
+            </div>
+            <div style={{ flex:1, padding:"10px 14px", borderRadius:10, background: partnerReady ? `${COLOR}15` : "#fff", border:`1.5px solid ${partnerReady ? COLOR : "#e0e0e0"}`, textAlign:"center" }}>
+              <p style={{ fontSize:11, fontWeight:700, color:"#aaa", margin:"0 0 4px" }}>{partnerName.toUpperCase()}</p>
+              <p style={{ fontSize:13, fontWeight:600, color: partnerReady ? COLOR : "#bbb", margin:0 }}>{partnerReady ? "✓ Ready" : "Not yet"}</p>
+            </div>
+          </div>
+          <button onClick={async () => {
+            const s = await sessionPost("toggle-ready", { id: sessionId, role: myRole, nextPhase });
+            if (s) setSession(s);
+          }} style={{ width:"100%", padding:"11px", borderRadius:10, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${iAmReady ? "#d4537e" : COLOR}`, background: iAmReady ? "#d4537e10" : `${COLOR}10`, color: iAmReady ? "#d4537e" : COLOR, fontFamily:FONT }}>
+            {iAmReady ? "↩ Not ready yet" : "✓ I'm ready to continue"}
+          </button>
+        </div>
+      );
+    };
+
     // ── FLIP ──
     if (phase === "flip") {
       const flipColor = side === "A" ? "#e07a3a" : "#7c6fcd";
@@ -385,7 +427,7 @@ function TetralemmaInner() {
           }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${loading ? "#e8e8e8" : flipColor}`, background:`${flipColor}10`, color:loading ? "#bbb" : flipColor, fontFamily:FONT }}>
             🔄 Flip — try the other side
           </button>
-          <button onClick={async () => {
+          <ReadyGate nextPhase="both" onSoloContinue={async () => {
             setPhase("both"); setLoading(true);
             const ctx = await generateContext(challenge, ideaA, ideaB, "both");
             setBothContexts([ctx]); setLoading(false);
@@ -393,9 +435,7 @@ function TetralemmaInner() {
               sessionPost("advance", { id: sessionId, phase: "both" });
               sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
             }
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
-            Continue →
-          </button>
+          }} />
         </div>
       </>);
     }
@@ -424,7 +464,7 @@ function TetralemmaInner() {
           }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: bothContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: bothContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
             {bothContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
           </button>
-          <button onClick={async () => {
+          <ReadyGate nextPhase="neither" onSoloContinue={async () => {
             setPhase("neither"); setLoading(true);
             const ctx = await generateContext(challenge, ideaA, ideaB, "neither");
             setNeitherContexts([ctx]); setLoading(false);
@@ -432,9 +472,7 @@ function TetralemmaInner() {
               sessionPost("advance", { id: sessionId, phase: "neither" });
               sessionPost("add-context", { id: sessionId, position: "neither", context: ctx });
             }
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
-            Continue →
-          </button>
+          }} />
         </div>
       </>);
     }
@@ -463,12 +501,7 @@ function TetralemmaInner() {
           }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: neitherContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: neitherContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
             {neitherContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
           </button>
-          <button onClick={() => {
-            setPhase("tabula");
-            if (sessionId) sessionPost("advance", { id: sessionId, phase: "tabula" });
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
-            Continue →
-          </button>
+          <ReadyGate nextPhase="tabula" onSoloContinue={() => setPhase("tabula")} />
         </div>
       </>);
     }
