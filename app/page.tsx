@@ -80,8 +80,8 @@ const games = [
   {
     id: "tetralemma",
     number: "10",
-    title: "Tetralemma",
-    description: "Two ideas in tension? Work through all four logical positions — and discover the fifth.",
+    title: "Creative Idea Generation",
+    description: "Let your brain(s) be worked through the magic of tetralemma logic.",
     color: "#1abc9c",
     available: true,
   },

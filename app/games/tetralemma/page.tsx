@@ -10,11 +10,8 @@ import type { TetralemmaSession } from "@/lib/tetralemmaStore";
 const COLOR  = "#1abc9c";
 const FONT   = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-const PHASE_CONFIG = {
-  flip:    { label: "Position 1 & 2",  title: "Only one is true",  color: "#e07a3a", sub: "Explore both sides — each flip shows a new context" },
-  both:    { label: "Position 3",       title: "Both are true",     color: "#1d9e75", sub: "When can both ideas work simultaneously?" },
-  neither: { label: "Position 4",       title: "Neither is true",   color: "#7c6fcd", sub: "When does a completely different answer emerge?" },
-  tabula:  { label: "Position 5",       title: "Tabula Rasa",       color: "#333",    sub: "Leave everything behind — what is the new answer?" },
+const PHASE_COLORS = {
+  flip: "#e07a3a", both: "#1d9e75", neither: "#7c6fcd", tabula: "#333",
 } as const;
 
 function inputSt(): React.CSSProperties {
@@ -26,7 +23,7 @@ function wrap(content: React.ReactNode) {
     <div style={{ minHeight:"100vh", background:"#f7f7f5", fontFamily:FONT }}>
       <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:10, background:"#fff", borderBottom:"1px solid #eee", padding:"0 28px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <Link href="/" style={{ fontSize:13, color:"#999", textDecoration:"none" }}>← CommLab</Link>
-        <span style={{ fontSize:14, fontWeight:600, color:"#111" }}>Tetralemma</span>
+        <span style={{ fontSize:14, fontWeight:600, color:"#111" }}>Creative Idea Generation</span>
         <span />
       </div>
       <div style={{ paddingTop:52 }}>
@@ -176,18 +173,22 @@ function TetralemmaInner() {
 
   // ── START screen ──
   if (mode === "start") return wrap(<>
-    <h1 style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.5px", color:"#111", margin:"0 0 8px" }}>Tetralemma</h1>
+    <h1 style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.5px", color:"#111", margin:"0 0 8px" }}>Creative Idea Generation</h1>
     <p style={{ fontSize:15, color:"#888", margin:"0 0 28px", lineHeight:1.6 }}>
       Two ideas in tension? Work through all four logical positions — and discover the fifth.
     </p>
     <div style={{ background:`${COLOR}10`, border:`1.5px solid ${COLOR}30`, borderRadius:14, padding:"16px 20px", marginBottom:28 }}>
-      {(["flip","both","neither","tabula"] as const).map((p, i) => {
-        const c = PHASE_CONFIG[p];
-        return <div key={p} style={{ display:"flex", gap:12, marginBottom: i < 3 ? 10 : 0 }}>
-          <span style={{ fontSize:11, fontWeight:700, color:c.color, minWidth:18 }}>{i+1}</span>
-          <span style={{ fontSize:13, color:"#666" }}><strong style={{ color:c.color }}>{c.title}</strong> — {c.sub}</span>
-        </div>;
-      })}
+      {([
+        { color: PHASE_COLORS.flip,    text: <>See context where either A <strong>OR</strong> B work.</> },
+        { color: PHASE_COLORS.both,    text: <>See contexts where A <strong>AND</strong> B work at the same time.</> },
+        { color: PHASE_COLORS.neither, text: <>See contexts where A <strong>NOR</strong> B work.</> },
+        { color: PHASE_COLORS.tabula,  text: <>Tabula Rasa — write what wants to emerge.</> },
+      ]).map(({ color, text }, i) => (
+        <div key={i} style={{ display:"flex", gap:12, marginBottom: i < 3 ? 10 : 0 }}>
+          <span style={{ fontSize:11, fontWeight:700, color, minWidth:18 }}>{i+1}</span>
+          <span style={{ fontSize:13, color:"#666" }}>{text}</span>
+        </div>
+      ))}
     </div>
     <label style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", display:"block", marginBottom:8 }}>YOUR CHALLENGE</label>
     <input value={challenge} onChange={e => setChallenge(e.target.value)} placeholder="What decision or tension are you exploring?" autoFocus style={{ ...inputSt(), marginBottom:16 }} />
@@ -312,71 +313,105 @@ function TetralemmaInner() {
 
   // ── TETRALEMMA PHASES ──
   if ((mode === "solo" || mode === "pair-ideas") && ideaA) {
-    const cfg = PHASE_CONFIG[phase];
+    // parse bullet points from JSON context string
+    const parseBullets = (raw: string): string[] => {
+      try { const p = JSON.parse(raw); return Array.isArray(p.points) ? p.points : [raw]; }
+      catch { return [raw]; }
+    };
 
-    // ── FLIP ──
-    if (phase === "flip") return wrap(<>
-      <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
+    const ChallengeHeading = () => (
+      <h2 style={{ fontSize:18, fontWeight:700, color:"#111", margin:"0 0 16px", lineHeight:1.4 }}>
+        Challenge: {challenge}
+      </h2>
+    );
+
+    const IdeaBadges = () => (
       <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
         <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
         <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
       </div>
-      <div style={{ background:`${cfg.color}10`, borderRadius:12, padding:"10px 16px", marginBottom:20, display:"flex", gap:12, alignItems:"center" }}>
-        <span style={{ fontSize:11, fontWeight:700, color:cfg.color, letterSpacing:"0.07em" }}>{cfg.label}</span>
-        <span style={{ fontSize:13, color:"#777" }}>{cfg.sub}</span>
-      </div>
+    );
 
-      {loading ? <Spinner /> : flipContext ? (
-        <>
-          <div style={{ marginBottom:6, display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontSize:11, fontWeight:700, color:"#fff", background:side === "A" ? "#e07a3a" : "#7c6fcd", borderRadius:8, padding:"3px 10px" }}>
-              IDEA {side} IS TRUE
-            </span>
+    const BulletCard = ({ ctx, color, activeLabel, inactiveLabel }: { ctx: string; color: string; activeLabel: string; inactiveLabel: string }) => {
+      const bullets = parseBullets(ctx);
+      return (
+        <div style={{ background:`${color}08`, border:`2px solid ${color}30`, borderRadius:14, padding:"16px 18px" }}>
+          <div style={{ display:"flex", gap:16, marginBottom:12 }}>
+            <span style={{ fontSize:12, fontWeight:700, color:"#fff", background:color, borderRadius:8, padding:"3px 10px" }}>{activeLabel} ✓</span>
+            <span style={{ fontSize:12, fontWeight:600, color:"#bbb", textDecoration:"line-through" }}>{inactiveLabel}</span>
           </div>
-          <ContextCard text={flipContext} color={side === "A" ? "#e07a3a" : "#7c6fcd"} />
-        </>
-      ) : null}
+          <ul style={{ margin:0, paddingLeft:20, display:"flex", flexDirection:"column", gap:6 }}>
+            {bullets.map((b, i) => <li key={i} style={{ fontSize:13, color:"#444", lineHeight:1.5 }}>{b}</li>)}
+          </ul>
+        </div>
+      );
+    };
 
-      <div style={{ display:"flex", gap:10, marginTop:16 }}>
-        <button disabled={loading} onClick={async () => {
-          setLoading(true);
-          const newSide: "A"|"B" = side === "A" ? "B" : "A";
-          const ctx = await generateContext(challenge, ideaA, ideaB, "flip", newSide);
-          setSide(newSide); setFlipContext(ctx); setLoading(false);
-          if (sessionId) sessionPost("flip", { id: sessionId, side: newSide, context: ctx });
-        }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${loading ? "#e8e8e8" : cfg.color}`, background:`${cfg.color}10`, color:loading ? "#bbb" : cfg.color, fontFamily:FONT }}>
-          🔄 Flip — try the other side
-        </button>
-        <button onClick={async () => {
-          setPhase("both"); setLoading(true);
-          const ctx = await generateContext(challenge, ideaA, ideaB, "both");
-          setBothContexts([ctx]); setLoading(false);
-          if (sessionId) {
-            sessionPost("advance", { id: sessionId, phase: "both" });
-            sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
-          }
-        }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
-          Continue →
-        </button>
-      </div>
-    </>);
+    const ContextBulletCard = ({ ctx, color, label }: { ctx: string; color: string; label: string }) => {
+      const bullets = parseBullets(ctx);
+      return (
+        <div style={{ background:`${color}08`, border:`2px solid ${color}30`, borderRadius:14, padding:"14px 18px" }}>
+          <p style={{ fontSize:10, fontWeight:700, color, letterSpacing:"0.07em", margin:"0 0 8px" }}>{label}</p>
+          <ul style={{ margin:0, paddingLeft:18, display:"flex", flexDirection:"column", gap:5 }}>
+            {bullets.map((b, i) => <li key={i} style={{ fontSize:13, color:"#444", lineHeight:1.5 }}>{b}</li>)}
+          </ul>
+        </div>
+      );
+    };
+
+    // ── FLIP ──
+    if (phase === "flip") {
+      const flipColor = side === "A" ? "#e07a3a" : "#7c6fcd";
+      const activeLabel  = side === "A" ? "A Works" : "B Works";
+      const inactiveLabel = side === "A" ? "B Does Not Work" : "A Does Not Work";
+      return wrap(<>
+        <ChallengeHeading />
+        <IdeaBadges />
+        <p style={{ fontSize:14, color:"#777", margin:"0 0 16px" }}>
+          See context where either A <strong>OR</strong> B work.
+        </p>
+
+        {loading ? <Spinner /> : flipContext ? (
+          <BulletCard ctx={flipContext} color={flipColor} activeLabel={activeLabel} inactiveLabel={inactiveLabel} />
+        ) : null}
+
+        <div style={{ display:"flex", gap:10, marginTop:16 }}>
+          <button disabled={loading} onClick={async () => {
+            setLoading(true);
+            const newSide: "A"|"B" = side === "A" ? "B" : "A";
+            const ctx = await generateContext(challenge, ideaA, ideaB, "flip", newSide);
+            setSide(newSide); setFlipContext(ctx); setLoading(false);
+            if (sessionId) sessionPost("flip", { id: sessionId, side: newSide, context: ctx });
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:`1.5px solid ${loading ? "#e8e8e8" : flipColor}`, background:`${flipColor}10`, color:loading ? "#bbb" : flipColor, fontFamily:FONT }}>
+            🔄 Flip — try the other side
+          </button>
+          <button onClick={async () => {
+            setPhase("both"); setLoading(true);
+            const ctx = await generateContext(challenge, ideaA, ideaB, "both");
+            setBothContexts([ctx]); setLoading(false);
+            if (sessionId) {
+              sessionPost("advance", { id: sessionId, phase: "both" });
+              sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
+            }
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:COLOR, color:"#fff" }}>
+            Continue →
+          </button>
+        </div>
+      </>);
+    }
 
     // ── BOTH ──
     if (phase === "both") {
-      const cfg3 = PHASE_CONFIG.both;
+      const c = PHASE_COLORS.both;
       return wrap(<>
-        <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
-          <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
-          <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
-        </div>
-        <div style={{ background:`${cfg3.color}10`, borderRadius:12, padding:"10px 16px", marginBottom:20, display:"flex", gap:12, alignItems:"center" }}>
-          <span style={{ fontSize:11, fontWeight:700, color:cfg3.color, letterSpacing:"0.07em" }}>{cfg3.label}</span>
-          <span style={{ fontSize:13, color:"#777" }}>{cfg3.sub}</span>
-        </div>
+        <ChallengeHeading />
+        <IdeaBadges />
+        <p style={{ fontSize:14, color:"#777", margin:"0 0 16px" }}>
+          See contexts where A <strong>AND</strong> B work at the same time.
+        </p>
 
         <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
-          {bothContexts.map((c, i) => <ContextCard key={i} text={c} color={cfg3.color} label={`Context ${i+1}`} />)}
+          {bothContexts.map((ctx, i) => <ContextBulletCard key={i} ctx={ctx} color={c} label={`Context ${i+1}`} />)}
           {loading && <Spinner />}
         </div>
 
@@ -386,7 +421,7 @@ function TetralemmaInner() {
             const ctx = await generateContext(challenge, ideaA, ideaB, "both");
             setBothContexts(prev => [...prev, ctx]); setLoading(false);
             if (sessionId) sessionPost("add-context", { id: sessionId, position: "both", context: ctx });
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: bothContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${cfg3.color}40`, background:`${cfg3.color}08`, color: bothContexts.length >= 3 ? "#bbb" : cfg3.color, fontFamily:FONT }}>
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: bothContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: bothContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
             {bothContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
           </button>
           <button onClick={async () => {
@@ -406,20 +441,16 @@ function TetralemmaInner() {
 
     // ── NEITHER ──
     if (phase === "neither") {
-      const cfg4 = PHASE_CONFIG.neither;
+      const c = PHASE_COLORS.neither;
       return wrap(<>
-        <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
-          <IdeaBadge label="A" idea={ideaA} color="#e07a3a" />
-          <IdeaBadge label="B" idea={ideaB} color="#7c6fcd" />
-        </div>
-        <div style={{ background:`${cfg4.color}10`, borderRadius:12, padding:"10px 16px", marginBottom:20, display:"flex", gap:12, alignItems:"center" }}>
-          <span style={{ fontSize:11, fontWeight:700, color:cfg4.color, letterSpacing:"0.07em" }}>{cfg4.label}</span>
-          <span style={{ fontSize:13, color:"#777" }}>{cfg4.sub}</span>
-        </div>
+        <ChallengeHeading />
+        <IdeaBadges />
+        <p style={{ fontSize:14, color:"#777", margin:"0 0 16px" }}>
+          See contexts where A <strong>NOR</strong> B work.
+        </p>
 
         <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
-          {neitherContexts.map((c, i) => <ContextCard key={i} text={c} color={cfg4.color} label={`Context ${i+1}`} />)}
+          {neitherContexts.map((ctx, i) => <ContextBulletCard key={i} ctx={ctx} color={c} label={`Context ${i+1}`} />)}
           {loading && <Spinner />}
         </div>
 
@@ -429,7 +460,7 @@ function TetralemmaInner() {
             const ctx = await generateContext(challenge, ideaA, ideaB, "neither");
             setNeitherContexts(prev => [...prev, ctx]); setLoading(false);
             if (sessionId) sessionPost("add-context", { id: sessionId, position: "neither", context: ctx });
-          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: neitherContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${cfg4.color}40`, background:`${cfg4.color}08`, color: neitherContexts.length >= 3 ? "#bbb" : cfg4.color, fontFamily:FONT }}>
+          }} style={{ flex:1, padding:"12px", borderRadius:12, fontSize:14, fontWeight:600, cursor: neitherContexts.length >= 3 || loading ? "not-allowed" : "pointer", border:`1.5px solid ${c}40`, background:`${c}08`, color: neitherContexts.length >= 3 ? "#bbb" : c, fontFamily:FONT }}>
             {neitherContexts.length >= 3 ? "Max 3 reached" : "✦ Reshuffle — add another"}
           </button>
           <button onClick={() => {
@@ -444,15 +475,11 @@ function TetralemmaInner() {
 
     // ── TABULA RASA ──
     if (phase === "tabula") {
-      const cfg5 = PHASE_CONFIG.tabula;
+      const isMulti = !!sessionId;
       return wrap(<>
-        <p style={{ fontSize:12, color:"#aaa", margin:"0 0 4px" }}>{challenge}</p>
-        <div style={{ background:"#f0f0f0", borderRadius:12, padding:"10px 16px", marginBottom:24, display:"flex", gap:12, alignItems:"center" }}>
-          <span style={{ fontSize:11, fontWeight:700, color:"#555", letterSpacing:"0.07em" }}>{cfg5.label}</span>
-          <span style={{ fontSize:13, color:"#777" }}>{cfg5.sub}</span>
-        </div>
-        <p style={{ fontSize:14, color:"#888", margin:"0 0 16px", lineHeight:1.6 }}>
-          Everything you explored — both sides, both together, neither — all of it has created space. Now write what wants to emerge.
+        <ChallengeHeading />
+        <p style={{ fontSize:14, color:"#555", margin:"0 0 20px", lineHeight:1.75 }}>
+          Tabula rasa. Now your {isMulti ? "brains" : "brain"} {isMulti ? "have" : "has"} walked through and beyond your initial ideas, and {isMulti ? "are" : "is"} ready to intuitively come up with a new idea for the challenge — or even may change the challenge. Now write what wants to emerge.
         </p>
         <textarea
           value={solution}
