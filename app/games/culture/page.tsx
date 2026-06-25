@@ -230,11 +230,14 @@ function ScaleVisual({ scores, dim, color }: {
     positions[score].push(name);
   });
 
+  // Center of each 6th segment: score n → ((n-0.5)/6)*100 %
+  const pct = (n: number) => `${((n - 0.5) / 6) * 100}%`;
+
   return (
     <div style={{ margin:"20px 0" }}>
       <div style={{ position:"relative", height:40, marginBottom:6 }}>
         {[1,2,3,4,5,6].map(n => (
-          <div key={n} style={{ position:"absolute", left:`${(n-1)*20}%`, width:"20%", display:"flex", flexDirection:"column", alignItems:"center" }}>
+          <div key={n} style={{ position:"absolute", left:pct(n), transform:"translateX(-50%)", display:"flex", flexDirection:"column", alignItems:"center" }}>
             {positions[n]?.map(name => (
               <span key={name} style={{ fontSize:11, fontWeight:700, background:color, color:"#fff", borderRadius:10, padding:"2px 7px", marginBottom:2, whiteSpace:"nowrap" }}>
                 {name}
@@ -253,10 +256,10 @@ function ScaleVisual({ scores, dim, color }: {
         <span style={{ fontSize:11, color:"#888", fontWeight:600 }}>1 — {dim.leftLabel}</span>
         <span style={{ fontSize:11, color:"#888", fontWeight:600 }}>{dim.rightLabel} — 6</span>
       </div>
-      {/* Legend */}
-      <div style={{ marginTop:14, display:"flex", flexWrap:"wrap", gap:6 }}>
+      {/* Legend — no-wrap tags */}
+      <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:5 }}>
         {dim.scaleLabels.map((label, i) => (
-          <span key={i} style={{ fontSize:11, background:"#f0f0f0", borderRadius:6, padding:"3px 8px", color:"#666" }}>
+          <span key={i} style={{ fontSize:11, background:"#f0f0f0", borderRadius:6, padding:"3px 8px", color:"#666", whiteSpace:"nowrap" }}>
             <strong>{i+1}</strong> — {label}
           </span>
         ))}
@@ -267,9 +270,9 @@ function ScaleVisual({ scores, dim, color }: {
 
 // ── Agreement Card ────────────────────────────────────────────────────────────
 
-function AgreementCard({ ag, myName, participants, onApprove, onEdit }: {
+function AgreementCard({ ag, myName, participants, onApprove, onEdit, onDelete }: {
   ag: CultureAgreement; myName: string; participants: string[];
-  onApprove: () => void; onEdit: (text: string) => void;
+  onApprove: () => void; onEdit: (text: string) => void; onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(ag.text);
@@ -293,6 +296,9 @@ function AgreementCard({ ag, myName, participants, onApprove, onEdit }: {
           <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
             <button onClick={() => setEditing(true)} style={{ padding:"5px 12px", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer", border:"1.5px solid #e0e0e0", background:"#fafafa", color:"#888", fontFamily:FONT }}>
               ✏️ Edit
+            </button>
+            <button onClick={onDelete} style={{ padding:"5px 10px", borderRadius:8, fontSize:11, fontWeight:600, cursor:"pointer", border:"1.5px solid #e0e0e0", background:"#fafafa", color:"#d4537e", fontFamily:FONT }}>
+              🗑
             </button>
             <button onClick={onApprove} disabled={iApproved} style={{ padding:"5px 14px", borderRadius:8, fontSize:11, fontWeight:600, cursor:iApproved ? "default" : "pointer", border:`1.5px solid ${iApproved ? "#1d9e75" : "#e0e0e0"}`, background:iApproved ? "#1d9e7515" : "#fff", color:iApproved ? "#1d9e75" : "#888", fontFamily:FONT }}>
               {iApproved ? "✓ Accepted" : "Accept"}
@@ -550,9 +556,15 @@ function CultureInner() {
       {(() => {
         const highNames = Object.entries(dimScores).filter(([,s]) => s >= 4).map(([n]) => n);
         const lowNames  = Object.entries(dimScores).filter(([,s]) => s <= 3).map(([n]) => n);
+        const highTxt = highNames.length ? highNames.join(" & ") : "higher scorers";
+        const lowTxt  = lowNames.length  ? lowNames.join(" & ")  : "lower scorers";
+        const highVerb = highNames.length === 1 ? "is" : "are";
+        const lowVerb  = lowNames.length  === 1 ? "is" : "are";
         const subst = (txt: string) => txt
-          .replace(/high scorers?/gi, highNames.length ? highNames.join(" & ") : "higher scorers")
-          .replace(/low scorers?/gi,  lowNames.length  ? lowNames.join(" & ")  : "lower scorers");
+          .replace(/high scorers? are/gi, `${highTxt} ${highVerb}`)
+          .replace(/low scorers? are/gi,  `${lowTxt} ${lowVerb}`)
+          .replace(/high scorers?/gi, highTxt)
+          .replace(/low scorers?/gi,  lowTxt);
         return (
           <div style={{ background:"#fff8f0", border:"1.5px solid #e07a3a30", borderRadius:12, padding:"14px 18px", marginBottom:16 }}>
             <p style={{ fontSize:11, fontWeight:700, color:"#e07a3a", letterSpacing:"0.07em", margin:"0 0 8px" }}>POSSIBLE FRICTION POINTS</p>
@@ -566,7 +578,7 @@ function CultureInner() {
         );
       })()}
 
-      <p style={{ fontSize:14, fontWeight:600, color:"#333", margin:"0 0 12px" }}>Discuss → then handle agreements:</p>
+      <p style={{ fontSize:14, color:"#555", margin:"0 0 12px", lineHeight:1.5 }}>Discuss, and when wanted find a team agreement:</p>
 
       {/* Agreements area */}
       {(() => {
@@ -574,22 +586,8 @@ function CultureInner() {
           <>
             {/* Action buttons */}
             <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
-              <button disabled={loadingAg} onClick={async () => {
-                setLoadingAg(true);
-                const dimInfo = { name: dim.name, leftLabel: dim.leftLabel, rightLabel: dim.rightLabel };
-                const res = await fetch("/api/games/culture/agreements", {
-                  method:"POST", headers:{"Content-Type":"application/json"},
-                  body: JSON.stringify({ dimension: dimInfo, scores: dimScores, participants: session.participants }),
-                });
-                const { agreements: texts } = await res.json();
-                const s = await apiPost("set-agreements", { id: sessionId, agreements: texts });
-                if (s) setSession(s);
-                setLoadingAg(false);
-              }} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${dim.color}50`, background:`${dim.color}08`, color:loadingAg ? "#bbb" : dim.color, fontFamily:FONT }}>
-                {loadingAg ? "Generating…" : "✦ Generate proposals"}
-              </button>
-              <button onClick={() => setShowProposalInput(v => !v)} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontFamily:FONT }}>
-                + Add a proposal
+              <button onClick={() => setShowProposalInput(v => !v)} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${dim.color}50`, background:`${dim.color}08`, color:dim.color, fontFamily:FONT }}>
+                + Propose an agreement
               </button>
               {(() => {
                 const myNone = (session.noneNeededApprovals ?? []).includes(myName);
@@ -629,6 +627,10 @@ function CultureInner() {
                     }}
                     onEdit={async (text) => {
                       const s = await apiPost("edit-agreement", { id: sessionId, agId: ag.id, text });
+                      if (s) setSession(s);
+                    }}
+                    onDelete={async () => {
+                      const s = await apiPost("delete-agreement", { id: sessionId, agId: ag.id });
                       if (s) setSession(s);
                     }}
                   />
@@ -704,29 +706,37 @@ function CultureInner() {
       <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 4px" }}>ASSESSMENT COMPLETE</p>
       <h2 style={{ fontSize:22, fontWeight:700, color:COLOR, margin:"0 0 20px" }}>All 8 dimensions mapped!</h2>
 
-      {/* Agreements per dimension */}
-      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 12px" }}>TEAM AGREEMENTS</p>
-      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+      {/* Team results + agreements per dimension */}
+      <p style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em", margin:"0 0 12px" }}>TEAM RESULTS & AGREEMENTS</p>
+      <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:16 }}>
         {DIMENSIONS.map((d, i) => {
           const ags = session.allAgreements[i] ?? [];
-          const myScore = session.allScores[myName]?.[i] ?? 0;
+          // Build scores for ScaleVisual from allScores
+          const dimScoresAll: Record<string, number> = {};
+          session.participants.forEach(p => {
+            const sc = session.allScores[p]?.[i] ?? 0;
+            if (sc > 0) dimScoresAll[p] = sc;
+          });
           return (
             <div key={d.name} style={{ background:"#fff", borderRadius:12, border:"1.5px solid #eee", overflow:"hidden" }}>
               <div style={{ background:`${d.color}08`, borderBottom:"1px solid #eee", padding:"8px 14px", display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ fontSize:15 }}>{d.icon}</span>
-                <span style={{ fontSize:13, fontWeight:700, color:d.color, flex:1 }}>{d.name}</span>
-                <span style={{ fontSize:11, color:d.color, background:`${d.color}15`, borderRadius:6, padding:"2px 8px" }}>You: {myScore}/6</span>
+                <span style={{ fontSize:13, fontWeight:700, color:d.color }}>{d.name}</span>
               </div>
-              <div style={{ padding:"10px 14px" }}>
-                {ags.length === 0
-                  ? <span style={{ fontSize:12, color:"#ccc" }}>No agreements</span>
-                  : ags.map((a, n) => (
-                    <div key={n} style={{ display:"flex", gap:8, marginBottom: n < ags.length-1 ? 6 : 0 }}>
+              <div style={{ padding:"0 14px" }}>
+                <ScaleVisual scores={dimScoresAll} dim={d} color={d.color} />
+              </div>
+              {ags.length > 0 && (
+                <div style={{ borderTop:"1px solid #f0f0f0", padding:"10px 14px" }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:"#bbb", letterSpacing:"0.06em", margin:"0 0 6px" }}>AGREEMENTS</p>
+                  {ags.map((a, n) => (
+                    <div key={n} style={{ display:"flex", gap:8, marginBottom: n < ags.length-1 ? 5 : 0 }}>
                       <span style={{ fontSize:12, color:d.color, fontWeight:700, flexShrink:0 }}>{n+1}.</span>
                       <span style={{ fontSize:13, color:"#555", lineHeight:1.4 }}>{a}</span>
                     </div>
                   ))}
-              </div>
+                </div>
+              )}
             </div>
           );
         })}

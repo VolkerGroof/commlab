@@ -53,6 +53,13 @@ export async function POST(req: NextRequest) {
     return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
+  if (action === "delete-agreement") {
+    const s = await mutateCulture(body.id, sess => {
+      sess.agreements = sess.agreements.filter(a => a.id !== body.agId);
+    });
+    return s ? NextResponse.json(s) : NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+
   if (action === "add-agreement") {
     const s = await mutateCulture(body.id, sess => {
       sess.agreements.push({ id: String(Date.now()), text: body.text, approvals: [] });
