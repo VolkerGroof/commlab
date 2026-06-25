@@ -358,6 +358,7 @@ function CultureInner() {
   const [guidance, setGuidance] = useState<{dimension:string; watchOut:string; tip:string}[]>([]);
   const [loadingGuide, setLoadingGuide] = useState(false);
   const [copied, setCopied]           = useState(false);
+  const [copiedAg, setCopiedAg]       = useState(false);
   const [proposalText, setProposalText]   = useState("");
   const [showProposalInput, setShowProposalInput] = useState(false);
 
@@ -774,8 +775,8 @@ ${g.map((item: {dimension:string;watchOut:string;tip:string}, i: number) => `
       </div>
 
       {/* Copy agreements */}
-      <button onClick={() => { navigator.clipboard.writeText(fullCopyText); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width:"100%", padding:"11px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:FONT, border:`1.5px solid ${copied ? "#1d9e75" : "#ddd"}`, background:copied ? "#1d9e7515":"#fff", color:copied ? "#1d9e75":"#555", transition:"all 0.2s", marginBottom:20 }}>
-        {copied ? "Copied ✓" : "Copy all agreements to clipboard"}
+      <button onClick={async () => { try { await navigator.clipboard.writeText(fullCopyText); setCopiedAg(true); setTimeout(() => setCopiedAg(false), 2000); } catch { alert("Copy failed — please copy manually"); } }} style={{ width:"100%", padding:"11px", borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:FONT, border:`1.5px solid ${copiedAg ? "#1d9e75" : "#ddd"}`, background:copiedAg ? "#1d9e7515":"#fff", color:copiedAg ? "#1d9e75":"#555", transition:"all 0.2s", marginBottom:20 }}>
+        {copiedAg ? "Copied ✓" : "Copy all agreements to clipboard"}
       </button>
 
       {/* Personal guide */}
