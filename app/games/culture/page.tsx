@@ -49,9 +49,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Very direct", "Direct", "Balanced", "Diplomatic", "Indirect", "Very indirect"],
     problems: [
-      "Direct people may be seen as harsh or unkind",
-      "Diplomatic people may be seen as evasive or dishonest",
-      "Feedback may not land — too harsh or too vague",
+      "High scorers may feel low scorers are too blunt or unkind",
+      "Low scorers may feel high scorers are evasive or dishonest",
+      "Feedback may not land — too harsh for high scorers or too vague for low scorers",
     ],
   },
   {
@@ -72,9 +72,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Top-down", "Leader-led", "Consultative", "Team-driven", "Consensus-seeking", "Full consensus"],
     problems: [
-      "Fast deciders may make others feel unheard",
-      "Consensus seekers may slow things down or frustrate action-oriented colleagues",
-      "Misaligned on whether decisions are 'final'",
+      "Low scorers may make high scorers feel unheard or bypassed",
+      "High scorers may slow things down and frustrate low scorers",
+      "Misaligned on whether decisions are final — low scorers commit, high scorers revisit",
     ],
   },
   {
@@ -95,9 +95,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Task-based", "Mostly task", "Balanced", "Some relationship", "Relationship-focused", "Deep relationship"],
     problems: [
-      "Task-based people may feel relationship-based people are wasting time",
-      "Relationship-based people may feel task-based people are cold or distant",
-      "Trust doesn't build the same way for everyone",
+      "Low scorers may feel high scorers are wasting time on social niceties",
+      "High scorers may feel low scorers are cold or distant",
+      "Trust doesn't build the same way — low scorers need results, high scorers need relationship",
     ],
   },
   {
@@ -118,9 +118,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Avoids conflict", "Dislikes conflict", "Cautious", "Accepts conflict", "Welcomes debate", "Thrives on debate"],
     problems: [
-      "Debate-lovers may be seen as aggressive or combative",
-      "Conflict-avoiders may be seen as passive or disengaged",
-      "Important issues may not surface if some people stay silent",
+      "High scorers may be seen as aggressive or combative by low scorers",
+      "Low scorers may be seen as passive or disengaged by high scorers",
+      "Important issues may not surface if low scorers stay silent",
     ],
   },
   {
@@ -141,9 +141,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Info sharing", "Mostly reporting", "Mixed", "Discussion-focused", "Decision-focused", "Co-creation"],
     problems: [
-      "Misaligned expectations on what outcomes meetings should produce",
-      "People show up with different levels of preparation",
-      "Some feel meetings are wasted time; others see them as essential",
+      "Low scorers may feel meetings produce no tangible outcome; high scorers value the discussion itself",
+      "High scorers may feel under-prepared compared to low scorers who expect pre-decided views",
+      "Low scorers see meetings as overhead; high scorers see them as the real work",
     ],
   },
   {
@@ -164,9 +164,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Very flexible", "Mostly flexible", "Balanced", "Structured", "Very structured", "Strictly punctual"],
     problems: [
-      "Structured people are frustrated by loose timekeeping",
-      "Flexible people feel over-controlled by rigid structure",
-      "Deadlines are taken differently — causing misaligned expectations",
+      "High scorers are frustrated when low scorers arrive late or miss deadlines",
+      "Low scorers feel over-controlled by high scorers' rigid structure",
+      "Deadlines mean different things — firm commitments for high scorers, rough targets for low scorers",
     ],
   },
   {
@@ -187,9 +187,9 @@ const DIMENSIONS = [
     ],
     scaleLabels: ["Fully egalitarian", "Mostly flat", "Balanced", "Some hierarchy", "Hierarchical", "Strongly hierarchical"],
     problems: [
-      "Egalitarian people feel frustrated when hierarchy blocks ideas",
-      "Hierarchy-oriented people may feel disrespected when junior members push back",
-      "Unclear who has final say in decisions",
+      "Low scorers feel frustrated when high scorers use authority to block ideas",
+      "High scorers may feel disrespected when low scorers challenge decisions openly",
+      "Unclear who has final say — low scorers expect consensus, high scorers expect hierarchy",
     ],
   },
 ] as const;
