@@ -686,12 +686,43 @@ function CultureInner() {
             allAgreements: session.allAgreements,
           }),
         });
-        if (!res.ok) throw new Error("API error");
-        const data = await res.json();
-        if (Array.isArray(data.guidance)) setGuidance(data.guidance);
-        else throw new Error("Bad response");
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const raw = await res.text();
+        const data = JSON.parse(raw);
+        const g = data.guidance;
+        if (!Array.isArray(g) || g.length === 0) throw new Error("Empty guidance");
+        setGuidance(g);
+
+        // Open guide in new tab
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>My Culture Guide — ${myName}</title>
+<style>
+  body{font-family:-apple-system,sans-serif;max-width:760px;margin:40px auto;padding:24px;color:#333;background:#f7f7f5;}
+  h1{font-size:22px;font-weight:700;margin:0 0 4px;}
+  h2{font-size:14px;color:#999;font-weight:400;margin:0 0 28px;}
+  .dim{background:#fff;border-radius:12px;border:1px solid #eee;padding:16px 20px;margin-bottom:14px;}
+  .dim-title{font-size:13px;font-weight:700;margin:0 0 6px;}
+  .watch{font-size:13px;color:#555;margin:0 0 4px;line-height:1.5;}
+  .tip{font-size:13px;color:#1d9e75;margin:0;line-height:1.5;}
+</style></head><body>
+<h1>Everyone Culture — Personal Guide</h1>
+<h2>${myName} · ${new Date().toLocaleDateString()}</h2>
+${g.map((item: {dimension:string;watchOut:string;tip:string}, i: number) => `
+<div class="dim">
+  <div class="dim-title">${DIMENSIONS[i]?.icon ?? ""} ${item.dimension}</div>
+  <p class="watch"><strong>Watch out for:</strong> ${item.watchOut}</p>
+  <p class="tip">💡 ${item.tip}</p>
+</div>`).join("")}
+</body></html>`;
+
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const tab = window.open(url, "_blank");
+        if (!tab) alert("Please allow popups to open the guide in a new tab.");
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
       } catch (e) {
         console.error("Guidance failed:", e);
+        alert("Could not generate guide — please try again.");
       } finally {
         setLoadingGuide(false);
       }

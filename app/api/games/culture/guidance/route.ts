@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const msg = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 800,
+    max_tokens: 2000,
     messages: [{
       role: "user",
       content: `You are a team coach. Create a personalized watch-out guide for ${myName} based on their team's culture assessment.
