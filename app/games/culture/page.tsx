@@ -256,8 +256,8 @@ function ScaleVisual({ scores, dim, color }: {
         <span style={{ fontSize:11, color:"#888", fontWeight:600 }}>1 — {dim.leftLabel}</span>
         <span style={{ fontSize:11, color:"#888", fontWeight:600 }}>{dim.rightLabel} — 6</span>
       </div>
-      {/* Legend — single row, scroll if needed */}
-      <div style={{ marginTop:10, display:"flex", flexWrap:"nowrap", gap:5, overflowX:"auto", paddingBottom:2 }}>
+      {/* Legend — wrap to new line when needed, never cut off */}
+      <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:5 }}>
         {dim.scaleLabels.map((label, i) => (
           <span key={i} style={{ fontSize:11, background:"#f0f0f0", borderRadius:6, padding:"3px 8px", color:"#666", whiteSpace:"nowrap" }}>
             <strong>{i+1}</strong> — {label}
