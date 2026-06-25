@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { CultureSession, CultureAgreement } from "@/lib/cultureStore";
@@ -342,6 +342,8 @@ function CultureInner() {
   const [answers, setAnswers]     = useState<number[]>([0, 0, 0]);
   const [submitted, setSubmitted] = useState(false);
   const [currentQ, setCurrentQ]  = useState(0); // which of the 3 questions we're on
+  const currentQRef = useRef(0);                 // ref to avoid stale closure
+  const answersRef  = useRef<number[]>([0,0,0]); // ref to avoid stale closure
 
   // Agreements
   const [loadingAg, setLoadingAg] = useState(false);
@@ -363,7 +365,7 @@ function CultureInner() {
     setSession(s);
     if (s.phase === "running" && uiPhase === "lobby") setUiPhase("scoring");
     if (s.dimPhase === "discussing" && uiPhase === "scoring") { setUiPhase("discussing"); setSubmitted(false); setAnswers([0,0,0]); }
-    if (s.dimPhase === "scoring" && uiPhase === "discussing") { setUiPhase("scoring"); setSubmitted(false); setAnswers([0,0,0]); setCurrentQ(0); }
+    if (s.dimPhase === "scoring" && uiPhase === "discussing") { setUiPhase("scoring"); setSubmitted(false); setAnswers([0,0,0]); setCurrentQ(0); currentQRef.current = 0; answersRef.current = [0,0,0]; }
     if (s.phase === "done" && uiPhase !== "done") setUiPhase("done");
   }, [sessionId, uiPhase]);
 
@@ -476,17 +478,23 @@ function CultureInner() {
       </div>
     );
 
-    const qIdx = Math.min(currentQ, 2);
-    const questionText = dim.questions[qIdx as 0|1|2];
-    const questionOpts = dim.options[qIdx as 0|1|2];
+    const qIdx = Math.min(currentQ, 2) as 0|1|2;
+    const questionText = dim.questions[qIdx];
+    const questionOpts = dim.options[qIdx];
 
     async function handlePick(value: number) {
-      const next = [...answers];
-      next[qIdx] = value;
-      setAnswers(next);
-      if (qIdx < 2) {
-        setCurrentQ(qIdx + 1);
+      // Use refs to avoid stale closures
+      const q = currentQRef.current;
+      if (q > 2) return; // guard
+      const next = [...answersRef.current];
+      next[q] = value;
+      answersRef.current = next;
+      setAnswers([...next]);
+      if (q < 2) {
+        currentQRef.current = q + 1;
+        setCurrentQ(q + 1);
       } else {
+        // All 3 answered — submit
         const s = await apiPost("submit-scores", { id: sessionId, name: myName, answers: next });
         if (s) { setSession(s); if (s.dimPhase === "discussing") setUiPhase("discussing"); }
       }
@@ -590,7 +598,7 @@ function CultureInner() {
                 return (
                   <button onClick={async () => {
                     const s = await apiPost("toggle-none-needed", { id: sessionId, name: myName });
-                    if (s) { setSession(s); if (s.dimPhase === "scoring") { setAnswers([0,0,0]); setCurrentQ(0); setUiPhase(s.phase === "done" ? "done" : "scoring"); } }
+                    if (s) { setSession(s); if (s.dimPhase === "scoring") { setAnswers([0,0,0]); setCurrentQ(0); currentQRef.current = 0; answersRef.current = [0,0,0]; setUiPhase(s.phase === "done" ? "done" : "scoring"); } }
                   }} style={{ padding:"9px 14px", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", border:`1.5px solid ${myNone ? "#1d9e75" : "#bbb"}`, background:myNone ? "#1d9e7515":"#fafafa", color:myNone ? "#1d9e75":"#888", fontFamily:FONT }}>
                     {allNone ? "Advancing…" : `None needed ${noneCount > 0 ? `(${noneCount}/${session.participants.length})` : ""}`}
                   </button>
@@ -629,7 +637,7 @@ function CultureInner() {
                 {allAgreementsAccepted && isHost && (
                   <button onClick={async () => {
                     const s = await apiPost("advance-dimension", { id: sessionId });
-                    if (s) { setSession(s); setAnswers([0,0,0]); setSubmitted(false); setUiPhase(s.phase === "done" ? "done" : "scoring"); }
+                    if (s) { setSession(s); setAnswers([0,0,0]); setCurrentQ(0); currentQRef.current = 0; answersRef.current = [0,0,0]; setSubmitted(false); setUiPhase(s.phase === "done" ? "done" : "scoring"); }
                   }} style={{ width:"100%", padding:"13px", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", border:"none", fontFamily:FONT, background:"#1d9e75", color:"#fff", marginTop:8 }}>
                     {session.currentDim < 7 ? `Continue to ${DIMENSIONS[session.currentDim + 1]?.name} →` : "Complete assessment →"}
                   </button>
